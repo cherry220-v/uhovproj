@@ -1,0 +1,33 @@
+{
+    "id": "teacher",
+    "name": "Манакова",
+
+    "startRoom": "classroom",
+
+    "stats": {
+        "intelligence": 7,
+        "aggression": 5,
+        "speed": 5,
+        "perception": 8
+    },
+
+    "behaviors": [
+        {
+            "type": "random_movement",
+            "config": {
+                "interval": 5000,
+                "availableRooms": [
+                    "classroom",
+                    "corridor",
+                    "office"
+                ]
+            }
+        },
+        {
+            "type": "direct_attack",
+            "config": {
+                "attackDistance": 1
+            }
+        }
+    ]
+}

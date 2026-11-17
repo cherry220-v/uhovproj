@@ -1,0 +1,8 @@
+{
+    "id": "classroom",
+    "spots": [
+        { "id": "door", "x": 660, "y": 280, "depth": 0 },
+        { "id": "behind_desk", "x": 400, "y": 310, "depth": 1 },
+        { "id": "center", "x": 250, "y": 230, "depth": 2 }
+    ]
+}
