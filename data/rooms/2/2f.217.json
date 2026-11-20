@@ -1,0 +1,16 @@
+{
+    "id": "2f.216",
+    "ways": {
+        "2f.1s": 2,
+        "2f.208": 2
+    },
+    "cameras": {
+        "2f.216.1": {"active": true}
+    },
+    "spots": [
+        { "id": "door" },
+        { "id": "behind_desk" },
+        { "id": "center" }
+    ],
+    "isSpecial": false
+}

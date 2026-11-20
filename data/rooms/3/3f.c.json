@@ -1,0 +1,16 @@
+{
+    "id": "3f.c",
+    "ways": {
+        "3f.312": 1,
+        "3f.318": 2,
+        "3f.325": 3,
+        "3f.2s": 5
+    },
+    "cameras": {
+        "3f.c.1": {"active": true}
+    },
+    "spots": [
+        { "id": "center" }
+    ],
+    "isSpecial": false
+}

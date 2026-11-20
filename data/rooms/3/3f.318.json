@@ -1,0 +1,16 @@
+{
+    "id": "3f.318",
+    "ways": {
+        "3f.2s": 2,
+        "3f.325": 2
+    },
+    "cameras": {
+        "3f.318.1": {"active": true}
+    },
+    "spots": [
+        { "id": "door" },
+        { "id": "behind_desk" },
+        { "id": "center" }
+    ],
+    "isSpecial": false
+}

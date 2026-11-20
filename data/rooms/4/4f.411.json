@@ -1,0 +1,23 @@
+{
+    "id": "4f.411",
+    "ways": {
+        "4f.c": 1
+    },
+    "cameras": {
+        "4f.411.1": {
+            "active": true
+        }
+    },
+    "spots": [
+        {
+            "id": "door"
+        },
+        {
+            "id": "behind_desk"
+        },
+        {
+            "id": "center"
+        }
+    ],
+    "isSpecial": false
+}

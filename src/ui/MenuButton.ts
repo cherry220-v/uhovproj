@@ -14,6 +14,7 @@ export interface MenuButtonOptions {
     textColor?: string;
     backgroundColor?: number;
 
+    disableAfterClick?: boolean;
     fadeOutMs?: number;
     onFadeStart?: () => void;
 }
@@ -25,6 +26,7 @@ export class MenuButton extends Phaser.GameObjects.Container {
     private static readonly FILL_IDLE = 0x2e2e2e;
     private static readonly FILL_HOVER = 0x3d3d3d;
 
+    private disableAfterClick: boolean = true;
     private readonly onClick: () => void;
     private readonly onFadeStart?: () => void;
     private readonly hoverSound?: string;
@@ -43,6 +45,7 @@ export class MenuButton extends Phaser.GameObjects.Container {
         this.onFadeStart = options.onFadeStart;
         this.hoverSound = options.hoverSound;
         this.clickSound = options.clickSound;
+        this.disableAfterClick = options.disableAfterClick ?? true;
         this.fadeOutMs = options.fadeOutMs;
         this.fillIdle = options.backgroundColor ?? MenuButton.FILL_IDLE;
         this.fillHover = options.backgroundColor
@@ -80,6 +83,10 @@ export class MenuButton extends Phaser.GameObjects.Container {
         const g = Math.min(0xff, ((color >> 8) & 0xff) + amount);
         const b = Math.min(0xff, (color & 0xff) + amount);
         return (r << 16) | (g << 8) | b;
+    }
+
+    public setText(text: string): void {
+        this.label.setText(text);
     }
 
     private playIfLoaded(key?: string, volume = 0.4): void {
@@ -123,29 +130,44 @@ export class MenuButton extends Phaser.GameObjects.Container {
 
     private readonly onPointerUp = (): void => {
         if (this.activated) return;
+
         this.activated = true;
         this.playIfLoaded(this.clickSound);
+
         this.scene.tweens.add({
             targets: this,
             scale: 1,
             duration: 70,
             ease: 'Sine.easeOut',
-            onComplete: () => this.activate()
+            onComplete: () => {
+                this.activate();
+            }
         });
     };
 
     private activate(): void {
         if (!this.fadeOutMs) {
             this.onClick();
+
+            if (!this.disableAfterClick) {
+                this.activated = false;
+            }
+
             return;
         }
 
-        this.disableInteractive(true);
+        if (this.disableAfterClick) {
+            this.disableInteractive();
+        }
 
         this.onFadeStart?.();
 
         const camera = this.scene.cameras.main;
+
         camera.fadeOut(this.fadeOutMs, 0, 0, 0);
-        camera.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.onClick());
+        camera.once(
+            Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE,
+            () => this.onClick()
+        );
     }
 }

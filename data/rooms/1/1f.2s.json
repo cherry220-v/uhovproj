@@ -1,0 +1,14 @@
+{
+    "id": "1f.2s",
+    "name": "Дальняя лестница 1 этажа",
+    "ways": {
+        "2f.2s": 1
+    },
+    "cameras": {
+        "2f.2s.1": {"active": true}
+    },
+    "spots": [
+        {"id": "door"}
+    ],
+    "isSpecial": false
+}

@@ -1,0 +1,13 @@
+{
+    "id": "4f.1s",
+    "ways": {
+        "4f.c": 1
+    },
+    "cameras": {
+        "4f.1s.1": {"active": true}
+    },
+    "spots": [
+        {"id": "center"}
+    ],
+    "isSpecial": false
+}

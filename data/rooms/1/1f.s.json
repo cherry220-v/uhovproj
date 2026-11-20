@@ -1,0 +1,13 @@
+{
+    "id": "1f.s",
+    "name": "Спортзал",
+    "ways": {
+        "1f.2s": 2
+    },
+    "cameras": {
+        "1f.s.1": {"active": false}
+    },
+    "spots": [
+    ],
+    "isSpecial": true
+}

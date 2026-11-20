@@ -1,0 +1,16 @@
+{
+    "id": "2f.2s",
+    "ways": {
+        "2f.c": 1
+    },
+    "specialWays": {
+        "3f.1s": 20
+    },
+    "cameras": {
+        "2f.2s.1": {"active": true}
+    },
+    "spots": [
+        {"id": "door"}
+    ],
+    "isSpecial": false
+}

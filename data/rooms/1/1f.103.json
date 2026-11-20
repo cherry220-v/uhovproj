@@ -1,0 +1,17 @@
+{
+    "id": "1f.103",
+    "name": "Кабинет 103",
+    "ways": {
+        "1f.2s": 5,
+        "1f.s": 5
+    },
+    "cameras": {
+        "1f.103.1": {"active": true}
+    },
+    "spots": [
+        { "id": "door" },
+        { "id": "behind_desk" },
+        { "id": "center" }
+    ],
+    "isSpecial": false
+}

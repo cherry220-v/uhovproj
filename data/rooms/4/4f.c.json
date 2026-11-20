@@ -1,0 +1,22 @@
+{
+    "id": "4f.c",
+    "ways": {
+        "4f.406": 1,
+        "4f.409": 1,
+        "4f.411": 1,
+        "4f.414": 1,
+        "4f.420": 1
+    },
+    "cameras": {
+        "4f.c.1": {
+            "active": true
+        },
+        "4f.c.2": {"active": true}
+    },
+    "spots": [
+        {
+            "id": "center"
+        }
+    ],
+    "isSpecial": false
+}

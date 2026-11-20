@@ -1,15 +1,28 @@
 import Phaser from 'phaser';
 import { MenuButton } from '../ui/MenuButton';
 import { SceneKeys } from './SceneKeys';
+import { GlitchManager } from '../effects/GlitchManager';
+
+import { profile } from '../meta/profile';
 
 const MUSIC_FADE_IN_MS = 3000;
 const MUSIC_FADE_OUT_MS = 1000;
 export const SCREEN_FADE_OUT_MS = 1200;
 
 export class MainMenu extends Phaser.Scene {
+    private glitchManager: GlitchManager = new GlitchManager(this);
     private music?: Phaser.Sound.WebAudioSound;
     private isFadingOut = false;
     private isStarting = false;
+    private selectedNight = 1;
+
+    private statsText!: Phaser.GameObjects.Text;
+    private nightText!: Phaser.GameObjects.Text;
+    private playButton!: MenuButton;
+    private prevButton!: MenuButton;
+    private nextButton!: MenuButton;
+    private resetText!: Phaser.GameObjects.Text;
+    private resetArmed = false;
 
     constructor() {
         super({ key: SceneKeys.MainMenu });
@@ -23,12 +36,16 @@ export class MainMenu extends Phaser.Scene {
     }
 
     create(): void {
-        this.music = this.sound.add('theme', {
-            loop: true,
-            volume: 0.05
-        }) as Phaser.Sound.WebAudioSound;
+        this.music = this.sound.get('theme');
+        if (!this.music)
+            this.music = this.sound.add('theme', {
+                loop: true,
+                volume: 0.05
+            }) as Phaser.Sound.WebAudioSound;
 
         const startMusicWithFade = (): void => {
+            if (!this.music?.isPlaying)
+            {
             this.music?.play();
             this.tweens.add({
                 targets: this.music,
@@ -36,6 +53,7 @@ export class MainMenu extends Phaser.Scene {
                 duration: 3000,
                 ease: 'Linear'
             });
+            }
         };
 
         if (!this.sound.locked) {
@@ -50,6 +68,7 @@ export class MainMenu extends Phaser.Scene {
 
         const camera = this.cameras.main;
         const vignette = camera.filters.internal.addVignette(0.5, 0.5, 1.1, 0.5);
+        camera.filters.internal.addBlur(0, 0.4, 0.4, 1, 0xffffff, 1);
 
         const title = this.add.text(
             400,
@@ -62,9 +81,9 @@ export class MainMenu extends Phaser.Scene {
             }
         ).setOrigin(0.5);
 
-        this.addTitleGlitch(title);
+        this.glitchManager.addTitleGlitch(title);
 
-        this.addRandomTextCorruption(
+        this.glitchManager.addRandomTextCorruption(
             title,
             "FIVE NIGHTS AT RKSI",
             3000
@@ -72,7 +91,7 @@ export class MainMenu extends Phaser.Scene {
 
         this.tweens.add({
             targets: title,
-            alpha: { from: 0.85, to: 1 },
+            alpha: { from: 1, to: 0.89 },
             duration: 1800,
             ease: 'Sine.easeInOut',
             yoyo: true,
@@ -93,10 +112,55 @@ export class MainMenu extends Phaser.Scene {
             repeat: -1
         });
 
-        this.addScreenGlitches();
-        this.addCensorshipGlitch();
+        this.glitchManager.addScreenGlitches();
+        this.glitchManager.addCensorshipGlitch();
 
-        new MenuButton({
+        this.selectedNight = profile.nightsPassed + 1;
+
+        this.statsText = this.add.text(400, 232, '', {
+            color: '#c9c05a',
+            fontSize: '16px'
+        }).setOrigin(0.5);
+
+        this.prevButton = new MenuButton({
+            scene: this,
+            x: 235,
+            y: 300,
+            label: '◀',
+            fontSize: '24px',
+            width: 64,
+            height: 48,
+            hoverSound: 'sfx_hover',
+            clickSound: 'sfx_click',
+            disableAfterClick: false,
+            onClick: () => this.shiftNight(-1)
+        });
+
+        this.nightText = this.add.text(400, 300, '', {
+            color: '#e8e8e8',
+            fontSize: '28px'
+        }).setOrigin(0.5);
+
+        this.nextButton = new MenuButton({
+            scene: this,
+            x: 565,
+            y: 300,
+            label: '▶',
+            fontSize: '24px',
+            width: 64,
+            height: 48,
+            hoverSound: 'sfx_hover',
+            clickSound: 'sfx_click',
+            disableAfterClick: false,
+            onClick: () => {
+                if (profile.isNightUnlocked(this.selectedNight + 1)) {
+                    this.selectedNight++;
+                    this.updateMenuUi();
+                }
+            }
+        });
+
+        this.playButton = new MenuButton({
             scene: this,
             x: 400,
             y: 300,
@@ -112,6 +176,8 @@ export class MainMenu extends Phaser.Scene {
             onFadeStart: () => this.fadeOutMusic(),
             onClick: () => this.scene.start(SceneKeys.NightScene)
         });
+        
+        this.updateMenuUi();
 
         new MenuButton({
             scene: this,
@@ -130,31 +196,27 @@ export class MainMenu extends Phaser.Scene {
         });
     }
 
-    private startGame(): void {
-        if (this.isStarting) {
-            return;
-        }
-        this.isStarting = true;
+    private shiftNight(delta: number): void {
+        const nextNight = this.selectedNight + delta;
+        console.log("NIGHT SHIFT" + " next night = " + nextNight);
 
-        if (!this.music) {
-            this.scene.start(SceneKeys.NightScene);
-            return;
-        }
+        if (!profile.isNightUnlocked(nextNight)) return;
 
-        this.tweens.killTweensOf(this.music);
+        this.selectedNight = nextNight;
+        this.updateMenuUi();
+    }
 
-        this.tweens.add({
-            targets: this.music,
-            volume: 0,
-            duration: 1500,
-            ease: 'Linear',
-            onComplete: () => {
-                this.music?.stop();
-                this.music?.destroy();
-                this.music = undefined;
-                this.scene.start(SceneKeys.NightScene);
-            }
-        });
+    private updateMenuUi(): void {
+        const maxNight = profile.nightsPassed + 1;
+
+        this.statsText.setText(
+            `Монеты: ${profile.money} · Пройдено ночей: ${profile.nightsPassed}`
+        );
+        this.nightText.setText(`Ночь ${this.selectedNight}`);
+        this.playButton.setText(`Начать ночь ${this.selectedNight}`);
+
+        this.prevButton.setAlpha(this.selectedNight > 1 ? 1 : 0.35);
+        this.nextButton.setAlpha(this.selectedNight < maxNight ? 1 : 0.35);
     }
 
     private fadeOutMusic(): void {
@@ -174,180 +236,4 @@ export class MainMenu extends Phaser.Scene {
             }
         });
     }
-
-    private addTitleGlitch(title: Phaser.GameObjects.Text): void {
-    this.time.addEvent({
-        delay: 3000,
-        loop: true,
-
-        callback: () => {
-            if (Math.random() > 0.6) return;
-
-            const originalX = 400;
-            const originalY = 140;
-
-            title.setPosition(
-                originalX + Phaser.Math.Between(-4, 4),
-                originalY + Phaser.Math.Between(-2, 2)
-            );
-
-            title.setAlpha(Phaser.Math.FloatBetween(0.4, 0.8));
-
-            this.time.delayedCall(50, () => {
-                title.setPosition(originalX, originalY);
-                title.setAlpha(1);
-            });
-        }
-    });
-    
-    }
-    private addScreenGlitches(): void {
-    this.time.addEvent({
-        delay: 2000,
-        loop: true,
-
-        callback: () => {
-            if (Math.random() > 0.45) return;
-
-            const y = Phaser.Math.Between(0, this.scale.height);
-            const height = Phaser.Math.Between(1, 4);
-
-            const glitch = this.add.rectangle(
-                this.scale.width / 2,
-                y,
-                this.scale.width,
-                height,
-                0xffffff,
-                0.15
-            ).setDepth(90);
-
-            this.tweens.add({
-                targets: glitch,
-                alpha: 0,
-                duration: 100,
-                onComplete: () => glitch.destroy()
-            });
-        }
-    });
-    }
-    private addRandomTextCorruption(
-    target: Phaser.GameObjects.Text,
-    originalText: string,
-    interval: number = 2500
-): void {
-    const glitchCharacters = "█▓▒░╳ЖФЫЭ#%@&!?0123456789";
-
-    this.time.addEvent({
-        delay: interval,
-        loop: true,
-        callback: () => {
-            if (Math.random() > 0.65) return;
-
-            const corrupted = originalText.split("");
-
-            const count = Phaser.Math.Between(1, 4);
-
-            for (let i = 0; i < count; i++) {
-                const index = Phaser.Math.Between(0, corrupted.length - 1);
-
-                if (corrupted[index] !== " ") {
-                    corrupted[index] = glitchCharacters[
-                        Phaser.Math.Between(0, glitchCharacters.length - 1)
-                    ];
-                }
-            }
-
-            const originalX = target.x;
-            const originalY = target.y;
-
-            target.setText(corrupted.join(""));
-
-            target.setPosition(
-                originalX + Phaser.Math.Between(-3, 3),
-                originalY + Phaser.Math.Between(-2, 2)
-            );
-
-            target.setAlpha(Phaser.Math.FloatBetween(0.4, 0.8));
-
-            this.time.delayedCall(70, () => {
-                target.setText(originalText);
-                target.setPosition(originalX, originalY);
-                target.setAlpha(1);
-            });
-        }
-    });
-    }
-    private addCensorshipGlitch(): void {
-    const width = this.scale.width;
-    const height = this.scale.height;
-
-    this.time.addEvent({
-        delay: 1800,
-        loop: true,
-        callback: () => {
-            if (Math.random() > 0.55) return;
-
-            const x = Phaser.Math.Between(30, width - 30);
-            const y = Phaser.Math.Between(30, height - 30);
-
-            const blockWidth = Phaser.Math.Between(25, 90);
-            const blockHeight = Phaser.Math.Between(20, 65);
-            const cellSize = Phaser.Math.Between(5, 12);
-
-            const container = this.add.container(x, y);
-            container.setDepth(90);
-            container.setAlpha(0);
-
-            const background = this.add.rectangle(
-                0,
-                0,
-                blockWidth,
-                blockHeight,
-                0x000000,
-                0.35
-            );
-
-            container.add(background);
-
-            for (let px = -blockWidth / 2; px < blockWidth / 2; px += cellSize) {
-                for (let py = -blockHeight / 2; py < blockHeight / 2; py += cellSize) {
-                    if (Math.random() > 0.7) continue;
-
-                    const colors = [
-                        0x000000,
-                        0x222222,
-                        0x666666,
-                        0xaaaaaa,
-                        0xffffff
-                    ];
-
-                    const color = Phaser.Utils.Array.GetRandom(colors);
-
-                    const cell = this.add.rectangle(
-                        px,
-                        py,
-                        cellSize,
-                        cellSize,
-                        color,
-                        Phaser.Math.FloatBetween(0.2, 0.8)
-                    );
-
-                    container.add(cell);
-                }
-            }
-
-            this.tweens.add({
-                targets: container,
-                alpha: 1,
-                duration: 60,
-                yoyo: true,
-                hold: Phaser.Math.Between(70, 180),
-                onComplete: () => {
-                    container.destroy();
-                }
-            });
-        }
-    });
-    }
-
 }

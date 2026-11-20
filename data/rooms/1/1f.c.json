@@ -1,0 +1,19 @@
+{
+    "id": "1f.c",
+    "name": "Коридор 1 этажа",
+    "ways": {
+        "1f.2s": 5,
+        "1f.103": 1,
+        "1f.s": 3
+    },
+    "cameras": {
+        "1f.c.1": {"active": true},
+        "1f.c.2": {"active": true}
+    },
+    "spots": [
+        { "id": "door" },
+        { "id": "behind_desk" },
+        { "id": "center" }
+    ],
+    "isSpecial": false
+}

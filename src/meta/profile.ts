@@ -30,6 +30,10 @@ class Profile {
     get money(): number {
         return this.data.money;
     }
+    set money(m: number) {
+        this.data.money = m;
+        writeSave(this.data);
+    }
 
     isNightUnlocked(night: number): boolean {
         return night >= 1 && night <= this.data.nightsPassed + 1;

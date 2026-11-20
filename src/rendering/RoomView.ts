@@ -3,12 +3,15 @@ import { DEPTH } from './depth';
 import { GameEvents } from '../ai/events';
 import type { IEventEmitter, MonsterArrivedEvent, MonsterLeftEvent } from '../ai/events';
 
+export interface RoomSize {
+    width: number;
+    height: number;
+}
+
 export interface RoomSpot {
     id: string;
-    /** Координаты в пространстве сцены (центр точки, у монстра origin снизу) */
     x: number;
     y: number;
-    /** Порядок монстров между собой внутри слоя MONSTER (кто рисуется поверх) */
     depth?: number;
 }
 
@@ -21,6 +24,8 @@ export interface RoomViewOptions {
     scene: Phaser.Scene;
     bus: IEventEmitter;
     roomId: string;
+    backgroundKey: string;
+    backgroundSize: RoomSize;
     spots: RoomSpotsData;
 }
 
@@ -33,6 +38,8 @@ export class RoomView {
     private readonly bgLayer: Phaser.GameObjects.Layer;
     private readonly monsterLayer: Phaser.GameObjects.Layer;
     private readonly fgLayer: Phaser.GameObjects.Layer;
+    private readonly backgroundKey?: string;
+    private readonly backgroundSize?: RoomSize;
 
     private readonly spots: Map<string, RoomSpot> = new Map();
 
@@ -42,6 +49,8 @@ export class RoomView {
         this.scene = options.scene;
         this.bus = options.bus;
         this.roomId = options.roomId;
+        this.backgroundKey = options.backgroundKey;
+        this.backgroundSize = options.backgroundSize;
 
         for (const spot of options.spots.spots) {
             this.spots.set(spot.id, spot);
@@ -73,17 +82,29 @@ export class RoomView {
     }
 
     private buildBackground(): void {
-        const bg = this.scene.add.rectangle(400, 300, 800, 600, 0x141414);
-        const wall = this.scene.add.rectangle(400, 310, 700, 420, 0x232323);
-        const board = this.scene.add.rectangle(400, 140, 260, 70, 0x1e3a2a);
-        this.bgLayer.add([bg, wall, board]);
+        if (this.backgroundKey) {
+            const { width, height } = this.scene.scale;
+
+            const bg = this.scene.add.image(0, 0, this.backgroundKey)
+                .setOrigin(0, 0)
+                .setScrollFactor(1)
+                .setDepth(1);
+
+            this.bgLayer.add(bg);
+        } else {
+            const bg = this.scene.add.rectangle(
+                0, 0, 800, 600, 0x141414
+            ).setOrigin(0, 0);
+
+            this.bgLayer.add(bg);
+        }
     }
 
     private buildFurniture(): void {
-        const teacherDesk = this.scene.add.rectangle(400, 300, 220, 34, 0x6b4a2f);
-        const deskLeft = this.scene.add.rectangle(190, 360, 220, 34, 0x5d4030);
-        const deskRight = this.scene.add.rectangle(610, 360, 220, 34, 0x5d4030);
-        this.fgLayer.add([teacherDesk, deskLeft, deskRight]);
+    }
+
+    public get layers(): Phaser.GameObjects.Layer[] {
+        return [this.bgLayer, this.monsterLayer, this.fgLayer];
     }
 
     private readonly onArrived = (payload: MonsterArrivedEvent): void => {

@@ -2,6 +2,8 @@ import Phaser, { Scene } from 'phaser';
 import { MenuButton } from '../ui/MenuButton';
 import { SceneKeys } from './SceneKeys';
 
+import { profile } from '../meta/profile';
+
 import { SCREEN_FADE_OUT_MS } from './MainMenu'
 
 interface ShopItem {
@@ -48,7 +50,6 @@ export class ShopScene extends Scene {
     private selectedCardDrawFn: ((state: 'normal' | 'hover' | 'selected') => void) | null = null;
     private gridContainer!: Phaser.GameObjects.Container;
     private balanceText!: Phaser.GameObjects.Text;
-    private playerBalance!: integer;
     private detailsContainer!: Phaser.GameObjects.Container;
 
     create(): void {
@@ -341,7 +342,7 @@ export class ShopScene extends Scene {
         }
         title.setText(item.name.toUpperCase());
         desc.setText(item.description);
-        btnText.setText('КУПИТЬ(${ item.price })');
+        btnText.setText(`КУПИТЬ(${ item.price })`);
         if (!this.detailsContainer.visible) {
             this.detailsContainer.setVisible(true);
             this.tweens.add({
@@ -362,7 +363,7 @@ export class ShopScene extends Scene {
         bg.fillRect(-boxWidth / 2, -boxHeight / 2, boxWidth, boxHeight);
         bg.lineStyle(1, 0x4b4f54, 1);
         bg.strokeRect(-boxWidth / 2, -boxHeight / 2, boxWidth, boxHeight);
-        this.balanceText = this.add.text(0, 0, 'БАЛАНС: ${ this.playerBalance } ОЧКОВ', {
+        this.balanceText = this.add.text(0, 0, `БАЛАНС: ${ profile.money } ОЧКОВ`, {
             color: '#c8ccd0',
             fontSize: '15px',
             fontStyle: 'bold',
@@ -371,9 +372,9 @@ export class ShopScene extends Scene {
         footerContainer.add([bg, this.balanceText]);
     }
     private onBuyItem(item: ShopItem): void {
-        if (this.playerBalance >= item.price) {
-            this.playerBalance -= item.price;
-            this.balanceText.setText('БАЛАНС: ${ this.playerBalance } ОЧКОВ');
+        if (profile.money >= item.price) {
+            profile.money -= item.price;
+            this.balanceText.setText(`БАЛАНС: ${ profile.money } ОЧКОВ`);
             console.log('Куплено: ${ item.name }');
         } else {
             this.balanceText.setColor('#a84444');
