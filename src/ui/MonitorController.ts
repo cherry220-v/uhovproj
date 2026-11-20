@@ -4,11 +4,15 @@ import { FloorMapUI } from './FloorMapUI';
 import HorrifiFilter from 'phaser4-rex-plugins/plugins/shaders/horrifi/HorrifiFilter';
 import { getCameraName, getNextCamera } from '../scenes/Cameras';
 import { DEPTH } from '../rendering/depth';
+import { SpecialActionRequest } from '../ai/behaviors/special/SpecialAction';
+import { IEventEmitter } from '../ai/events';
+import { MenuButton } from './MenuButton';
 
 const MONITOR_FADE_MS = 130;
 
 export interface MonitorControllerOptions {
     scene: Phaser.Scene;
+    events: IEventEmitter;
     x: number;
     y: number;
     width?: number;
@@ -17,6 +21,7 @@ export interface MonitorControllerOptions {
 
 export class MonitorController extends Phaser.GameObjects.Container {
     private glitchManager!: GlitchManager;
+    private events!: IEventEmitter;
     
     private floorMap!: FloorMapUI;
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
@@ -24,6 +29,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
     private monitorBlur!: Phaser.Filters.Blur;
     private cameraImage!: Phaser.GameObjects.Image;
     private viewText!: Phaser.GameObjects.Text;
+    private acceptButton!: MenuButton;
 
     private onKeyLeft = () => this.changeCamera(true);
     private onKeyRight = () => this.changeCamera(false);
@@ -32,10 +38,25 @@ export class MonitorController extends Phaser.GameObjects.Container {
 
     private monitorOpen = false;
     private flashlightUsing = false;
+    
+    private pendingRequest: SpecialActionRequest | null = null;
 
     constructor(options: MonitorControllerOptions) {
         super(options.scene, options.x, options.y);
         this.glitchManager = new GlitchManager(this.scene);
+        this.events = options.events;
+
+        this.events.on(
+            "monitor:minigame-pending",
+            this.onMinigamePending,
+            this
+        );
+
+        this.events.on(
+            "monitor:minigame-pending-end",
+            this.clearMinigamePending,
+            this
+        );
 
         this.width = options.width ?? this.scene.scale.width
         this.height = options.height ?? this.scene.scale.height
@@ -93,6 +114,53 @@ export class MonitorController extends Phaser.GameObjects.Container {
         this.updateVHS();
 
         this.updateMonitor();
+    }
+
+    private onMinigamePending(request: SpecialActionRequest): void {
+        this.pendingRequest = request;
+
+        this.updateMinigameButton();
+    }
+
+    private clearMinigamePending(
+        request: SpecialActionRequest
+    ): void {
+        if (
+            !this.pendingRequest ||
+            this.pendingRequest.monsterId !== request.monsterId ||
+            this.pendingRequest.actionId !== request.actionId
+        ) {
+            return;
+        }
+
+        this.pendingRequest = null;
+
+        this.acceptButton?.setVisible(false);
+
+        this.updateMinigameButton();
+    }
+
+    private updateMinigameButton(): void {
+        if (!this.pendingRequest) {
+            this.acceptButton?.setVisible(false);
+            return;
+        }
+
+        const isCorrectRoom =
+            this.activeCamera === this.pendingRequest.roomId;
+
+        this.acceptButton?.setVisible(isCorrectRoom);
+    }
+
+    private onAcceptMinigame(): void {
+        if (!this.pendingRequest) return;
+
+        if (
+            this.activeCamera !==
+            this.pendingRequest.roomId
+        ) return;
+
+        this.events.emit("minigame:accept");
     }
 
     private updateVHS(): void {

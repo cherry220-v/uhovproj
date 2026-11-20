@@ -1,0 +1,175 @@
+import Phaser from "phaser";
+import type { IEventEmitter } from "../ai/events";
+import type { SpecialActionRequest } from "../ai/behaviors/special/SpecialAction";
+
+interface QTEData extends SpecialActionRequest {
+    duration?: number;
+}
+
+export class QTEScene extends Phaser.Scene {
+    private eventsBus!: IEventEmitter;
+
+    private code = "tryexcept";
+    private progress = 0;
+
+    private codeText!: Phaser.GameObjects.Text;
+    private progressText!: Phaser.GameObjects.Text;
+    private timerText!: Phaser.GameObjects.Text;
+
+    private deadline = 0;
+    private duration = 15;
+
+    private request!: QTEData;
+    private finished = false;
+
+    constructor(eventsBus: IEventEmitter) {
+        super({ key: "QTEScene" });
+        this.eventsBus = eventsBus;
+    }
+
+    public create(data: QTEData): void {
+        this.request = data;
+        this.finished = false;
+        this.progress = 0;
+
+        this.duration = data.duration ?? 15;
+        this.deadline = this.time.now + this.duration * 1000;
+
+        const { width, height } = this.scale;
+
+        // Затемнение экрана
+        const overlay = this.add.rectangle(
+            width / 2,
+            height / 2,
+            width,
+            height,
+            0x000000,
+            0.85
+        );
+
+        overlay.setDepth(1000);
+
+        this.add.text(width / 2, height * 0.25, "ВВЕДИТЕ КОД", {
+            fontSize: "32px",
+            color: "#ffffff",
+            fontFamily: "monospace"
+        }).setOrigin(0.5).setDepth(1001);
+
+        this.codeText = this.add.text(
+            width / 2,
+            height * 0.45,
+            "",
+            {
+                fontSize: "42px",
+                color: "#00ff00",
+                fontFamily: "monospace"
+            }
+        ).setOrigin(0.5).setDepth(1001);
+
+        this.progressText = this.add.text(
+            width / 2,
+            height * 0.60,
+            "",
+            {
+                fontSize: "22px",
+                color: "#ffffff",
+                fontFamily: "monospace"
+            }
+        ).setOrigin(0.5).setDepth(1001);
+
+        this.timerText = this.add.text(
+            width / 2,
+            height * 0.75,
+            "",
+            {
+                fontSize: "24px",
+                color: "#ff4444",
+                fontFamily: "monospace"
+            }
+        ).setOrigin(0.5).setDepth(1001);
+
+        this.refreshUI();
+
+        this.input.keyboard?.on(
+            "keydown",
+            this.handleKey,
+            this
+        );
+    }
+
+    private handleKey(event: KeyboardEvent): void {
+        if (this.finished) return;
+
+        const key = event.key.toLowerCase();
+
+        if (!/^[a-z]$/.test(key)) return;
+
+        const expected = this.code[this.progress];
+
+        if (key === expected) {
+            this.progress++;
+        } else {
+            this.progress = 0;
+        }
+
+        this.refreshUI();
+
+        if (this.progress >= this.code.length) {
+            this.finish(true);
+        }
+    }
+
+    private refreshUI(): void {
+        const completed = this.code.slice(0, this.progress);
+        const remaining = this.code.slice(this.progress);
+
+        this.codeText.setText(completed + remaining);
+
+        this.codeText.setColor(
+            this.progress === this.code.length
+                ? "#00ff00"
+                : "#ffffff"
+        );
+
+        this.progressText.setText(
+            `${this.progress} / ${this.code.length}`
+        );
+    }
+
+    public update(): void {
+        if (this.finished) return;
+
+        const remaining = Math.max(
+            0,
+            this.deadline - this.time.now
+        );
+
+        this.timerText.setText(
+            `Время: ${(remaining / 1000).toFixed(1)}`
+        );
+
+        if (remaining <= 0) {
+            this.finish(false);
+        }
+    }
+
+    private finish(success: boolean): void {
+        if (this.finished) return;
+
+        this.finished = true;
+
+        this.input.keyboard?.off(
+            "keydown",
+            this.handleKey,
+            this
+        );
+
+        this.eventsBus.emit("monster:special-finish", {
+            monsterId: this.request.monsterId,
+            actionId: this.request.actionId,
+            result: { success }
+        });
+
+        this.scene.stop();
+    }
+}

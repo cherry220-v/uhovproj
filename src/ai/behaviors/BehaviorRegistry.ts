@@ -1,4 +1,4 @@
-import type { IMonsterBehavior, BehaviorMeta } from "./IMonsterBehavior";
+import type { IMonsterBehavior, BehaviorMeta } from "./IBehavior";
 
 export type BehaviorConstructor = new (config: any) => IMonsterBehavior;
 

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { RoomView } from '../rendering/RoomView';
 import { DEPTH } from '../rendering/depth';
 import { GameEvents } from '../ai/events';
-import type { IEventEmitter, MonsterArrivedEvent, MonsterLeftEvent } from '../ai/events';
+import type { IEventEmitter } from '../ai/events';
 import { SceneKeys } from './SceneKeys';
 import { FloorMapUI, FLOOR_COUNT, floorTextureKey } from '../ui/FloorMapUI';
 import { profile, moneyWord } from '../meta/profile';
@@ -10,6 +10,8 @@ import { ITEM_NAMES, ITEM_ORDER } from '../meta/items';
 
 import { floorMap } from './Cameras'
 import { MonitorController } from '../ui/MonitorController';
+import { MinigameManager } from '../ai/behaviors/special/MinigameManager';
+import { MonsterManager } from '../ai/MonsterManager';
 
 const ROOM_SIZE = { width: 1678, height: 1119 };
 
@@ -38,6 +40,8 @@ function formatNightClock(elapsedMs: number): string {
 
 export class NightScene extends Phaser.Scene {
     private bus!: IEventEmitter;
+    private minigameManager!: MinigameManager;
+    private monsterManager!: MonsterManager;
     private roomView!: RoomView;
     private hintText!: Phaser.GameObjects.Text;
     private timeText!: Phaser.GameObjects.Text;
@@ -90,6 +94,12 @@ export class NightScene extends Phaser.Scene {
 
         this.sound.stopByKey('theme');
         this.bus = new Phaser.Events.EventEmitter();
+        this.monsterManager = new MonsterManager();
+        this.minigameManager = new MinigameManager({
+            game: this.game,
+            events: this.bus,
+            monsters: this.monsterManager,
+        });
 
         const cam = this.cameras.main;
         cam.setBounds(0, 0, ROOM_SIZE.width, ROOM_SIZE.height);
@@ -112,6 +122,7 @@ export class NightScene extends Phaser.Scene {
 
         this.monitorController = new MonitorController({
             scene: this,
+            events: this.bus,
             x: 0,
             y: 0
         });
@@ -127,9 +138,6 @@ export class NightScene extends Phaser.Scene {
             this.lootText,
             this.monitorController,
         ]);
-
-        this.bus.on(GameEvents.MonsterArrived, this.onMonsterArrived);
-        this.bus.on(GameEvents.MonsterLeft, this.onMonsterLeft);
 
         this.input.keyboard?.on('keydown-Q', () => this.lookAt('board'));
         this.input.keyboard?.on('keydown-W', () => this.lookAt('door'));
@@ -279,10 +287,4 @@ export class NightScene extends Phaser.Scene {
             this.sound.play(key, { volume });
         }
     }
-
-    private readonly onMonsterArrived = (payload: MonsterArrivedEvent): void => {
-    };
-
-    private readonly onMonsterLeft = (_payload: MonsterLeftEvent): void => {
-    };
 }

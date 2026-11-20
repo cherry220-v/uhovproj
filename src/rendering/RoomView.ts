@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { DEPTH } from './depth';
 import { GameEvents } from '../ai/events';
-import type { IEventEmitter, MonsterArrivedEvent, MonsterLeftEvent } from '../ai/events';
+import type { IEventEmitter } from '../ai/events';
 
 export interface RoomSize {
     width: number;
@@ -68,14 +68,9 @@ export class RoomView {
             .setOrigin(0.5, 1) // точка спота = ноги монстра
             .setVisible(false);
         this.monsterLayer.add(this.monsterView);
-
-        this.bus.on(GameEvents.MonsterArrived, this.onArrived);
-        this.bus.on(GameEvents.MonsterLeft, this.onLeft);
     }
 
     public destroy(): void {
-        this.bus.off(GameEvents.MonsterArrived, this.onArrived);
-        this.bus.off(GameEvents.MonsterLeft, this.onLeft);
         this.bgLayer.destroy();
         this.monsterLayer.destroy();
         this.fgLayer.destroy();
@@ -107,26 +102,4 @@ export class RoomView {
         return [this.bgLayer, this.monsterLayer, this.fgLayer];
     }
 
-    private readonly onArrived = (payload: MonsterArrivedEvent): void => {
-        if (payload.roomId !== this.roomId) {
-            return;
-        }
-
-        const spot = this.spots.get(payload.spotId);
-        if (!spot) {
-            console.warn(`RoomView[${this.roomId}]: неизвестный спот "${payload.spotId}"`);
-            return;
-        }
-
-        this.monsterView.setPosition(spot.x, spot.y);
-        this.monsterView.setDepth(spot.depth ?? 0);
-        this.monsterView.setVisible(true);
-    };
-
-    private readonly onLeft = (payload: MonsterLeftEvent): void => {
-        if (payload.roomId !== this.roomId) {
-            return;
-        }
-        this.monsterView.setVisible(false);
-    };
 }

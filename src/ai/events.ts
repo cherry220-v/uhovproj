@@ -1,6 +1,4 @@
-// Контракты событий между AI-слоем и рендером.
-// AI-слой не знает про Phaser: ему достаточно этого интерфейса,
-// под который структурно подходит и Phaser.Events.EventEmitter.
+import { SpecialActionRequest, SpecialActionResult } from "./behaviors/special/SpecialAction";
 
 export interface IEventEmitter {
     on(event: string, fn: (...args: any[]) => void, context?: any): void;
@@ -8,21 +6,24 @@ export interface IEventEmitter {
     emit(event: string, ...args: any[]): void;
 }
 
-// payload события "монстр пришёл в комнату и встал в точку"
-export interface MonsterArrivedEvent {
+export interface MonsterMovedEvent {
     monsterId: string;
     roomId: string;
     spotId: string;
 }
 
-// payload события "монстр покинул комнату"
-export interface MonsterLeftEvent {
+export interface MonsterTickEvent {
     monsterId: string;
     roomId: string;
 }
 
-// Имена событий в одном месте, чтобы не опечататься в строках
-export const GameEvents = {
-    MonsterArrived: 'monster:arrived',
-    MonsterLeft: 'monster:left'
-} as const;
+export interface GameEvents {
+    "monster:special-start": SpecialActionRequest;
+    "monster:special-finish": {
+        monsterId: string;
+        actionId: string;
+        result: SpecialActionResult;
+    };
+    "monster:tick": MonsterTickEvent;
+    "monster:move": MonsterMovedEvent;
+}

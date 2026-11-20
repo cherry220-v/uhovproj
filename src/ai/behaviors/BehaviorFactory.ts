@@ -1,5 +1,5 @@
 import { BehaviorRegistry } from "./BehaviorRegistry";
-import type { IMonsterBehavior } from "./IMonsterBehavior";
+import type { IMonsterBehavior } from "./IBehavior";
 
 export interface BehaviorConfig {
     type: string;
