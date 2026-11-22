@@ -1,10 +1,5 @@
 import type { IBehavior } from "./behaviors/IBehavior";
 
-const monsterConfigs = import.meta.glob<{ name: string }>('../../data/monsters/*.json', {
-  eager: true,
-  import: 'default',
-});
-
 export type MonsterState =
     | "idle"
     | "moving"

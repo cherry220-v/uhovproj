@@ -1,17 +1,20 @@
 import Phaser from 'phaser';
 import { RoomView } from '../rendering/RoomView';
 import { DEPTH } from '../rendering/depth';
-import { GameEvents } from '../ai/events';
-import type { IEventEmitter } from '../ai/events';
+import type { IEventEmitter } from '../engine/events';
 import { SceneKeys } from './SceneKeys';
-import { FloorMapUI, FLOOR_COUNT, floorTextureKey } from '../ui/FloorMapUI';
+import { FloorMapUI, floorTextureKey } from '../ui/FloorMapUI';
 import { profile, moneyWord } from '../meta/profile';
 import { ITEM_NAMES, ITEM_ORDER } from '../meta/items';
 
-import { floorMap } from './Cameras'
+import { cameraDataMap, floorMap } from './Cameras'
 import { MonitorController } from '../ui/MonitorController';
 import { MinigameManager } from '../ai/behaviors/special/MinigameManager';
 import { MonsterManager } from '../ai/MonsterManager';
+import { SpecialActionRequest } from '../ai/behaviors/special/SpecialAction';
+import { NightManager } from '../systems/NightManager';
+import { NightConfig, NightRegistry } from '../systems/NightRegistry';
+import { FloorManager } from '../engine/FloorManager';
 
 const ROOM_SIZE = { width: 1678, height: 1119 };
 
@@ -40,6 +43,8 @@ function formatNightClock(elapsedMs: number): string {
 
 export class NightScene extends Phaser.Scene {
     private bus!: IEventEmitter;
+    private floorManager!: FloorManager;
+    private nightManager!: NightManager;
     private minigameManager!: MinigameManager;
     private monsterManager!: MonsterManager;
     private roomView!: RoomView;
@@ -50,6 +55,7 @@ export class NightScene extends Phaser.Scene {
     private monitorController!: MonitorController;
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
 
+    private nightConfig?: NightConfig;
     private night = 1;
     private elapsedMs = 0;
     private nightOver = false;
@@ -67,6 +73,23 @@ export class NightScene extends Phaser.Scene {
         this.elapsedMs = 0;
         this.nightOver = false;
         this.sideView = 'default';
+
+        this.floorManager = new FloorManager([
+            { id: 1, name: "Первый этаж" },
+            { id: 2, name: "Второй этаж" },
+            { id: 3, name: "Третий этаж" },
+            { id: 4, name: "Четвёртый этаж" }
+        ]);
+
+        this.nightConfig = NightRegistry.get(`night_${this.night}`);
+
+        if (this.nightConfig) {
+        const activeIds = Object.entries(this.nightConfig.floors ?? {})
+            .filter(([_, isActive]) => isActive)
+            .map(([id]) => Number(id));
+
+        this.floorManager.setActiveFloors(activeIds);
+        }
     }
 
     preload(): void {
@@ -74,32 +97,49 @@ export class NightScene extends Phaser.Scene {
         this.load.audio('sfx_hover', 'assets/sounds/ui_hover.wav');
         this.load.audio('sfx_click', 'assets/sounds/ui_click.wav');
 
-        this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
-            console.warn(`Failed to load asset: ${file.key} (${file.url})`);
-        });
-
-        for (let floor = 1; floor <= FLOOR_COUNT; floor++) {
-            this.load.image(floorTextureKey(floor), `assets/ui/floors/floor_${floor}.png`);
-
-            const cameras = floorMap[floor]?.cameras ?? [];
-            for (const cameraKey of cameras) {
-                const path = `assets/rooms/${floor}/${cameraKey}.jpg`;
-                this.load.image(cameraKey, path);
+        this.floorManager.getActiveFloors().forEach(floor => {
+            this.load.image(floorTextureKey(floor.id), `assets/ui/floors/floor_${floor}.png`);
+            
+            for (const [cameraId, data] of Object.entries(cameraDataMap)) {
+                const path = `assets/rooms/${floor.id}/${cameraId}.jpg`;
+                this.load.image(cameraId, path);
             }
-        }
+        });
     }
 
     create(): void {
         this.cameras.main.fadeIn(1000, 0, 0, 0);
 
         this.sound.stopByKey('theme');
+
         this.bus = new Phaser.Events.EventEmitter();
-        this.monsterManager = new MonsterManager();
+        this.monsterManager = new MonsterManager({events: this.bus});
+        this.nightManager = new NightManager(this.nightConfig!, {
+            monsters: this.monsterManager,
+            events: this.bus,
+            setFloorActive: (floor, active) => {
+                this.floorManager.setFloorActive(floor, active);
+            },
+
+            onHourChanged: (hour) => {
+                console.log(`Night hour: ${hour}`);
+            },
+
+            onNightFinished: () => {
+                console.log("Night finished!");
+            }
+        });
         this.minigameManager = new MinigameManager({
             game: this.game,
             events: this.bus,
             monsters: this.monsterManager,
         });
+
+        this.bus.on(
+            "minigame:accept",
+            this.runMinigame,
+            this
+        );
 
         const cam = this.cameras.main;
         cam.setBounds(0, 0, ROOM_SIZE.width, ROOM_SIZE.height);
@@ -122,6 +162,7 @@ export class NightScene extends Phaser.Scene {
 
         this.monitorController = new MonitorController({
             scene: this,
+            floorManager: this.floorManager,
             events: this.bus,
             x: 0,
             y: 0
@@ -149,6 +190,7 @@ export class NightScene extends Phaser.Scene {
         this.input.keyboard?.on('keydown-ESC', () => {
             this.scene.start(SceneKeys.MainMenu);
         });
+        this.nightManager.startNight();
     }
 
     update(_time: number, delta: number): void {
@@ -248,6 +290,11 @@ export class NightScene extends Phaser.Scene {
         this.input.keyboard?.once(Phaser.Input.Keyboard.Events.ANY_KEY_DOWN, () => {
             this.scene.start(SceneKeys.MainMenu);
         });
+    }
+
+    private runMinigame(request: SpecialActionRequest): void {
+        console.log("got emit in minigame");
+        this.scene.launch(request.sceneId, {eventBus: this.bus});
     }
 
     private debugSkipHour(): void {

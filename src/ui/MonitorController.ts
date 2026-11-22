@@ -5,13 +5,15 @@ import HorrifiFilter from 'phaser4-rex-plugins/plugins/shaders/horrifi/HorrifiFi
 import { getCameraName, getNextCamera } from '../scenes/Cameras';
 import { DEPTH } from '../rendering/depth';
 import { SpecialActionRequest } from '../ai/behaviors/special/SpecialAction';
-import { IEventEmitter } from '../ai/events';
+import { IEventEmitter } from '../engine/events';
 import { MenuButton } from './MenuButton';
+import { FloorManager } from '../engine/FloorManager';
 
 const MONITOR_FADE_MS = 130;
 
 export interface MonitorControllerOptions {
     scene: Phaser.Scene;
+    floorManager: FloorManager;
     events: IEventEmitter;
     x: number;
     y: number;
@@ -23,6 +25,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
     private glitchManager!: GlitchManager;
     private events!: IEventEmitter;
     
+    private floorManager!: FloorManager;
     private floorMap!: FloorMapUI;
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
     private horrifi!: HorrifiFilter;
@@ -44,6 +47,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
     constructor(options: MonitorControllerOptions) {
         super(options.scene, options.x, options.y);
         this.glitchManager = new GlitchManager(this.scene);
+        this.floorManager = options.floorManager;
         this.events = options.events;
 
         this.events.on(
@@ -79,6 +83,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
 
         this.floorMap = new FloorMapUI({
             scene: this.scene,
+            floorManager: this.floorManager,
             floor: 1,
             mainCamera: this.scene.cameras.main,
             hoverSound: 'sfx_hover',
@@ -109,6 +114,23 @@ export class MonitorController extends Phaser.GameObjects.Container {
             vignetteEnable: true,
             vignetteStrength: 0.8
         });
+
+        const { width } = this.scene.scale;
+
+        this.acceptButton = new MenuButton({
+            scene: this.scene,
+            x: width - 110,
+            y: 45,
+            label: "#rrf421",
+            onClick: () => this.onAcceptMinigame(),
+            width: 180,
+            height: 50,
+            fontSize: "18px",
+            backgroundColor: 0x8b0000,
+            textColor: "#ffffff",
+            disableAfterClick: false
+        });
+        this.acceptButton.setDepth(DEPTH.UI+1001);
 
         this.scene.input.keyboard?.on('keydown-Z', () => {this.cameraImage.setLighting(!this.flashlightUsing);this.flashlightUsing = !this.flashlightUsing;});
         this.updateVHS();
@@ -153,14 +175,16 @@ export class MonitorController extends Phaser.GameObjects.Container {
     }
 
     private onAcceptMinigame(): void {
+        this.pendingRequest = {roomId: "4f.414", sceneId: "QTEScene", actionId: "hacker_qte", duration: 30, monsterId: "korban_v1"};
         if (!this.pendingRequest) return;
 
-        if (
-            this.activeCamera !==
-            this.pendingRequest.roomId
-        ) return;
+        // if (
+        //     this.activeCamera !==
+        //     this.pendingRequest.roomId
+        // ) return;
 
-        this.events.emit("minigame:accept");
+        this.events.emit("minigame:accept", this.pendingRequest);
+        console.log("emitted in accept");
     }
 
     private updateVHS(): void {
@@ -193,7 +217,6 @@ export class MonitorController extends Phaser.GameObjects.Container {
 
         if (this.monitorOpen) {
             this.monitorBlur.active = false;
-            // this.horrifi.enable = false;
             this.floorMap.visible(true);
             this.floorMap.setMapVisible(this.floorMap.mapVisible);
 
@@ -211,7 +234,6 @@ export class MonitorController extends Phaser.GameObjects.Container {
             });
         } else {
             this.monitorBlur.active = true;
-            // this.horrifi.enable = true;
             this.floorMap.visible(false);
 
             this.scene.input.keyboard?.off('keydown-A', this.onKeyLeft);
@@ -227,6 +249,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
                 onComplete: () => this.cameraImage.setVisible(false)
             });
         }
+        // this.updateMinigameButton();
     }
 
     public get monitorOpened(): boolean {
@@ -237,7 +260,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
         console.log(this.activeCamera);
         if (this.activeCamera) {
             let floor = this.floorMap.getFloor();
-            let cameraId = getNextCamera(floor, this.activeCamera, prev);
+            let cameraId = getNextCamera(floor, this.activeCamera, this.floorManager, prev);
             this.activeCamera = cameraId;
             this.cameraImage.setTexture(cameraId);
         }

@@ -1,6 +1,6 @@
-import type { IMonsterBehavior, BehaviorMeta } from "./IBehavior";
+import type { IBehavior, BehaviorMeta } from "./IBehavior";
 
-export type BehaviorConstructor = new (config: any) => IMonsterBehavior;
+export type BehaviorConstructor = new (config: any) => IBehavior;
 
 interface BehaviorRegistration {
     metadata: BehaviorMeta;

@@ -1,0 +1,57 @@
+{
+    "id": "night_1",
+    "duration": 6,
+
+    "floors": {
+        "1": true,
+        "2": false,
+        "3": false,
+        "4": false
+    },
+
+    "hours": {
+        "1": {
+            "activeMonsters": ["korban_v1"],
+            "monsters": {
+                "korban_v1": {
+                    "intelligence": 2,
+                    "behaviors": {
+                        "default_moving": {
+                            "agression": 3,
+                            "spProgression": 5
+                        }
+                    }
+                }
+            }
+        },
+
+        "2": {
+            "activeMonsters": ["korban_v1"],
+            "monsters": {
+                "korban_v1": {
+                    "intelligence": 4,
+                    "behaviors": {
+                        "default_moving": {
+                            "agression": 5,
+                            "spProgression": 7
+                        }
+                    }
+                }
+            }
+        },
+        "3": {
+            "activeMonsters": ["korban_v1"],
+            "monsters": {
+                "korban_v1": {
+                    "intelligence": 6,
+                    "behaviors": {
+                        "default_moving": {
+                            "agression": 7,
+                            "spProgression": 10
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

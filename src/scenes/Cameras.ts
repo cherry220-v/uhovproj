@@ -2,28 +2,46 @@ import floor1Cameras from '../../data/rooms/1/camera_view.json';
 import floor2Cameras from '../../data/rooms/2/camera_view.json';
 import floor3Cameras from '../../data/rooms/3/camera_view.json';
 import floor4Cameras from '../../data/rooms/4/camera_view.json';
-import { FLOOR_COUNT } from '../ui/FloorMapUI';
+import { FloorManager } from '../engine/FloorManager';
 
-const roomModules = import.meta.glob<{ name: string }>('../../data/rooms/**/*.json', {
+const roomModules = import.meta.glob<{ name: string }>('../../data/rooms/**/?f.**.json', {
   eager: true,
   import: 'default',
 });
 
-interface CameraData {
-  id: string;
-  name: string;
-  ways: {id: number};
-  specialWays?: {id: number};
-  cameras: {id: {active: boolean}};
-  spots: {id: string};
-  isSpecial: boolean;
+export interface CameraData {
+    id: string;
+    name: string;
+
+    ways: Record<string, number>;
+    specialWays?: Record<string, number>;
+
+    cameras: Record<string, {
+        active: boolean;
+    }>;
+
+    spots: {
+        id: string;
+    }[];
+
+    isSpecial: boolean;
 }
 
-const cameraDataMap: Record<string, { name: string }> = {};
-  for (const [path, data] of Object.entries(roomModules)) {
-    const key = path.split('/').pop()?.replace('.json', '');
-    if (key) cameraDataMap[key] = data;
+export const cameraDataMap: Record<string, { name: string; active: boolean }> = {};
+
+for (const data of Object.values(roomModules as Record<string, CameraData>)) {
+  if (!data?.cameras) continue;
+
+  for (const [cameraId, cameraConfig] of Object.entries(data.cameras)) {
+    console.log(cameraId, cameraConfig);
+    cameraDataMap[cameraId] = {
+      name: data.name,
+      active: cameraConfig.active,
+    };
+  }
 }
+console.log(cameraDataMap);
+
 export const floorMap: Record<number, { cameras: string[] } | undefined> = {
     1: floor1Cameras,
     2: floor2Cameras,
@@ -35,24 +53,36 @@ export function getCameraName(camera: string): string {
   return cameraDataMap[camera]?.name ?? camera;
 }
 
-export function getNextCamera(floor: number, activeCamera: string, prev = false): string {
-  const cameras = floorMap[floor]?.cameras ?? [];
-  const defaultCamera = `${floor}f.1s`;
+export function getNextCamera(
+    floor: number,
+    activeCamera: string,
+    floorManager: FloorManager,
+    prev = false
+): string {
+    const cameras = floorMap[floor]?.cameras ?? [];
 
-  if (cameras.length === 0) return defaultCamera;
+    const defaultCamera = `${floor}f.1s.1`;
 
-  const activeFloor = parseInt(activeCamera, FLOOR_COUNT);
-  if (activeFloor !== floor) {
-    return (prev ? cameras.at(-1) : cameras.at(0)) ?? defaultCamera;
-  }
+    if (cameras.length === 0) return defaultCamera;
 
-  const currentIndex = cameras.indexOf(activeCamera);
-  console.log(cameras[currentIndex]);
-  if (currentIndex === -1) return cameras[0];
+    const activeFloor = floorManager.getFloorFromCamera(activeCamera);
 
-  const step = prev ? -1 : 1;
-  const nextIndex = (currentIndex + step + cameras.length) % cameras.length;
-  console.log(cameras[nextIndex]);
+    if (activeFloor !== floor) {
+        return prev
+            ? cameras.at(-1) ?? defaultCamera
+            : cameras[0] ?? defaultCamera;
+    }
 
-  return cameras[nextIndex];
+    const currentIndex = cameras.indexOf(activeCamera);
+
+    if (currentIndex === -1) {
+        return cameras[0] ?? defaultCamera;
+    }
+
+    const step = prev ? -1 : 1;
+
+    const nextIndex =
+        (currentIndex + step + cameras.length) % cameras.length;
+
+    return cameras[nextIndex] ?? defaultCamera;
 }

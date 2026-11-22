@@ -4,21 +4,20 @@ import { DEPTH } from '../rendering/depth';
 import { MenuButton } from './MenuButton';
 
 import { GlitchManager } from '../effects/GlitchManager';
-
-export type FloorId = 1 | 2 | 3 | 4;
-export const FLOOR_COUNT = 4;
+import { FloorManager } from '../engine/FloorManager';
 
 export interface FloorMapOptions {
     scene: Phaser.Scene;
-    floor?: FloorId;
-    onFloorChange?: (floor: FloorId) => void;
+    floorManager: FloorManager;
+    floor?: number;
+    onFloorChange?: (floor: number) => void;
     mainCamera?: Phaser.Cameras.Scene2D.Camera;
     hoverSound?: string;
     clickSound?: string;
 }
 
 interface FloorOption {
-    floor: FloorId;
+    floor: number;
 }
 
 const SCREEN = { width: 800, height: 600 };
@@ -49,10 +48,10 @@ export class FloorMapUI {
     private readonly mapImage: Phaser.GameObjects.Image;
     private readonly btnText: Phaser.GameObjects.Text;
     private readonly closeMapBtn: MenuButton;
-    private readonly onFloorChange?: (floor: FloorId) => void;
+    private readonly onFloorChange?: (floor: number) => void;
     private readonly hoverSound?: string;
     private readonly clickSound?: string;
-    private floor: FloorId;
+    private floor: number;
     private isMapVisible: boolean = true;
 
     constructor(options: FloorMapOptions) {
@@ -106,7 +105,7 @@ export class FloorMapUI {
 
         this.btnText = this.scene.add.text(0, 0, `Этаж ${this.floor}`, TEXT_STYLE);
 
-        const floorOptions: FloorOption[] = ([1, 2, 3, 4] as FloorId[]).map(
+        const floorOptions: FloorOption[] = ([1, 2, 3, 4] as number[]).map(
             floor => ({ floor })
         );
 
@@ -164,11 +163,11 @@ export class FloorMapUI {
         this.layoutFloorImage();
     }
 
-    public get currentFloor(): FloorId {
+    public get currentFloor(): number {
         return this.floor;
     }
 
-    public setFloor(floor: FloorId): void {
+    public setFloor(floor: number): void {
         this.floor = floor;
         this.btnText.setText(`Этаж ${floor}`);
         this.layoutFloorImage();

@@ -1,6 +1,13 @@
 import Phaser from "phaser";
-import type { IEventEmitter } from "../ai/events";
+import type { IEventEmitter } from "../engine/events";
 import type { SpecialActionRequest } from "../ai/behaviors/special/SpecialAction";
+
+const QTE_CODES: string[] = [
+    "tryexcept",
+    "learning_log",
+    "aefkg*rf2fs3d",
+    "OlGaMaNaKoVa2023"
+] as const;
 
 interface QTEData extends SpecialActionRequest {
     duration?: number;
@@ -9,7 +16,7 @@ interface QTEData extends SpecialActionRequest {
 export class QTEScene extends Phaser.Scene {
     private eventsBus!: IEventEmitter;
 
-    private code = "tryexcept";
+    private code = "";
     private progress = 0;
 
     private codeText!: Phaser.GameObjects.Text;
@@ -24,20 +31,23 @@ export class QTEScene extends Phaser.Scene {
 
     constructor(eventsBus: IEventEmitter) {
         super({ key: "QTEScene" });
-        this.eventsBus = eventsBus;
+    }
+
+    public init(data: {eventBus: IEventEmitter}) {
+        this.eventsBus = data.eventBus;
     }
 
     public create(data: QTEData): void {
         this.request = data;
         this.finished = false;
         this.progress = 0;
+        this.code = QTE_CODES[Math.floor(Math.random() * QTE_CODES.length)];
 
         this.duration = data.duration ?? 15;
         this.deadline = this.time.now + this.duration * 1000;
 
         const { width, height } = this.scale;
 
-        // Затемнение экрана
         const overlay = this.add.rectangle(
             width / 2,
             height / 2,

@@ -234,4 +234,18 @@ export class DefaultMovingBehavior extends IBehavior {
 
         return null;
     }
+
+    public applyConfig(config: Record<string, unknown>): void {
+        if (typeof config.agression === "number") {
+            this.config.agression = config.agression;
+        }
+
+        if (typeof config.spProgression === "number") {
+            this.config.spProgression = config.spProgression;
+        }
+
+        if (typeof config.chances === "object" && config.chances !== null) {
+            this.config.chances = config.chances as typeof this.config.chances;
+        }
+}
 }

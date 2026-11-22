@@ -1,6 +1,3 @@
-/**
- * Хранится в localStorage; при сборке в Tauri localStorage живёт в WebView,
- */
 export interface SaveData {
     version: number;
     nightsPassed: number;

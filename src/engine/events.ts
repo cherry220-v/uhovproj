@@ -1,4 +1,4 @@
-import { SpecialActionRequest, SpecialActionResult } from "./behaviors/special/SpecialAction";
+import { SpecialActionRequest, SpecialActionResult } from "../ai/behaviors/special/SpecialAction";
 
 export interface IEventEmitter {
     on(event: string, fn: (...args: any[]) => void, context?: any): void;
@@ -18,6 +18,14 @@ export interface MonsterTickEvent {
 }
 
 export interface GameEvents {
+    "night:start": {nightId: number; duration: number;};
+    "night:end": {gameOver: boolean;};
+    "night:tick": {time: string;};
+
+    "player:move": {};
+    "player:cameras": {};
+    "player:door": {};
+
     "monster:special-start": SpecialActionRequest;
     "monster:special-finish": {
         monsterId: string;
@@ -26,4 +34,7 @@ export interface GameEvents {
     };
     "monster:tick": MonsterTickEvent;
     "monster:move": MonsterMovedEvent;
+    "monitor:minigame-pending": SpecialActionRequest;
+    "monitor:minigame-pending-end": SpecialActionRequest;
+    "minigame:accept": SpecialActionRequest;
 }

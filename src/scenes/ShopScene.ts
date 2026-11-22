@@ -129,7 +129,6 @@ export class ShopScene extends Scene {
         const card = this.add.container(x, y);
         const graphics = this.add.graphics();
 
-        // Отрисовка состаренной серой карточки в стиле DBD
         const drawCard = (state: 'normal' | 'hover' | 'selected') => {
             graphics.clear();
 
@@ -137,32 +136,26 @@ export class ShopScene extends Scene {
             const borderColor = state === 'selected' ? 0xd9dde0 : state === 'hover' ? 0x8c9298 : 0x3e4146;
             const innerFrameColor = state === 'selected' ? 0x7c8288 : 0x292b2f;
 
-            // Основной матовый серый фон
             graphics.fillStyle(bgFill, 0.96);
             graphics.fillRect(-width / 2, -height / 2, width, height);
 
-            // Тонкая стыковочная рамка
             graphics.lineStyle(1, borderColor, 1);
             graphics.strokeRect(-width / 2, -height / 2, width, height);
 
-            // Внутренняя потертая рамка с отступом
             graphics.lineStyle(1, innerFrameColor, 0.85);
             graphics.strokeRect(-width / 2 + 5, -height / 2 + 5, width - 10, height - 10);
 
-            // Угловые засечки при наведении или выборе (характерный акцент DBD)
             if (state === 'hover' || state === 'selected') {
                 const tick = 10;
                 const pad = 5;
                 graphics.lineStyle(2, borderColor, 1);
 
-                // Левый верхний угол
                 graphics.beginPath();
                 graphics.moveTo(-width / 2 + pad, -height / 2 + pad + tick);
                 graphics.lineTo(-width / 2 + pad, -height / 2 + pad);
                 graphics.lineTo(-width / 2 + pad + tick, -height / 2 + pad);
                 graphics.strokePath();
 
-                // Правый нижний угол
                 graphics.beginPath();
                 graphics.moveTo(width / 2 - pad, height / 2 - pad - tick);
                 graphics.lineTo(width / 2 - pad, height / 2 - pad);
@@ -173,7 +166,6 @@ export class ShopScene extends Scene {
 
         drawCard('normal');
 
-        // Квадратный слот товара (иконка)
         const iconSize = 96;
         const iconY = -44;
         const iconSlotBg = this.add.rectangle(0, iconY, iconSize, iconSize, 0x0f1012)
@@ -192,7 +184,6 @@ export class ShopScene extends Scene {
             }).setOrigin(0.5);
         }
 
-        // Название предмета
         const nameText = this.add.text(0, 34, item.name.toUpperCase(), {
             color: '#c8ccd0',
             fontSize: '14px',
@@ -201,10 +192,8 @@ export class ShopScene extends Scene {
             wordWrap: { width: width - 20 }
         }).setOrigin(0.5);
 
-        // Тонкий разделитель
         const line = this.add.rectangle(0, 68, width - 28, 1, 0x3b3e42);
 
-        // Цена
         const priceText = this.add.text(0, 88, `${item.price} ОЧКОВ`, {
             color: '#9ea3a8',
             fontSize: '14px',
@@ -212,7 +201,6 @@ export class ShopScene extends Scene {
         }).setOrigin(0.5);
 
         card.add([graphics, iconSlotBg, iconObj, nameText, line, priceText]);
-        // Интерактивность без смещения карточек (чтобы не ломать монолитную сетку)
         card.setSize(width, height);
         card.setInteractive({ useHandCursor: true });
         card.on('pointerover', () => {
@@ -239,15 +227,13 @@ export class ShopScene extends Scene {
         return card;
     }
     private createDetailsPanel(): void {
-        // Высота совпадает с высотой 2 рядов карточек (236 * 2 = 472), стоит в том же слое справа
         const panelWidth = 350;
         const panelHeight = 472;
         const panelX = this.scale.width * 0.76;
         const panelY = this.scale.height * 0.50;
         this.detailsContainer = this.add.container(panelX, panelY);
-        this.detailsContainer.setAlpha(0); // Невидима на том же слое до выбора товара
+        this.detailsContainer.setAlpha(0);
         this.detailsContainer.setVisible(false);
-        // Состаренная серая рамка правой панели
         const panelBg = this.add.graphics();
         panelBg.fillStyle(0x16171a, 0.96);
         panelBg.fillRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight);
@@ -255,7 +241,6 @@ export class ShopScene extends Scene {
         panelBg.strokeRect(-panelWidth / 2, -panelHeight / 2, panelWidth, panelHeight);
         panelBg.lineStyle(1, 0x2c2f33, 1);
         panelBg.strokeRect(-panelWidth / 2 + 6, -panelHeight / 2 + 6, panelWidth - 12, panelHeight - 12);
-        // Увеличенный квадратный слот иконки
         const bigIconSize = 148;
         const bigIconY = -125;
         const bigIconFrame = this.add.rectangle(0, bigIconY, bigIconSize, bigIconSize, 0x0e0f11)
@@ -266,7 +251,6 @@ export class ShopScene extends Scene {
             fontSize: '54px',
             fontStyle: 'bold'
         }).setOrigin(0.5).setName('bigIconFallback');
-        // Заголовок товара
         const itemTitle = this.add.text(0, -25, '', {
             color: '#e1e4e8',
             fontSize: '20px',
@@ -274,9 +258,7 @@ export class ShopScene extends Scene {
             align: 'center',
             wordWrap: { width: panelWidth - 36 }
         }).setOrigin(0.5).setName('itemTitle');
-        // Разделитель
         const divider = this.add.rectangle(0, 0, panelWidth - 50, 1, 0x3b3e42);
-        // Описание товара
         const itemDesc = this.add.text(0, 65, '', {
             color: '#9ea3a8',
             fontSize: '15px',
@@ -284,7 +266,6 @@ export class ShopScene extends Scene {
             lineSpacing: 6,
             wordWrap: { width: panelWidth - 44 }
         }).setOrigin(0.5).setName('itemDesc');
-        // Кнопка «Купить» снизу панели
         const btnWidth = 240;
         const btnHeight = 46;
         const btnY = 178;
