@@ -1,6 +1,6 @@
 import type { IBehavior, BehaviorMeta } from "./IBehavior";
 
-export type BehaviorConstructor = new (config: any) => IBehavior;
+export type BehaviorConstructor = new (config: any, ...deps: any[]) => IBehavior;
 
 interface BehaviorRegistration {
     metadata: BehaviorMeta;

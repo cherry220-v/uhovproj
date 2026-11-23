@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { DEPTH } from './depth';
-import { GameEvents } from '../ai/events';
-import type { IEventEmitter } from '../ai/events';
+import type { IEventEmitter } from '../engine/events';
 
 export interface RoomSize {
     width: number;

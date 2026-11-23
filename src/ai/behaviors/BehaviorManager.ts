@@ -1,5 +1,5 @@
 import { BehaviorRegistry } from "./BehaviorRegistry";
-import type { IMonsterBehavior } from "./IBehavior";
+import type { IBehavior } from "./IBehavior";
 
 export interface BehaviorConfig {
     type: string;
@@ -8,7 +8,7 @@ export interface BehaviorConfig {
 
 export class BehaviorManager {
 
-    public static create(config: BehaviorConfig): IMonsterBehavior {
+    public static create(config: BehaviorConfig): IBehavior {
         const registration = BehaviorRegistry.get(config.type);
 
         if (!registration) {
@@ -18,7 +18,7 @@ export class BehaviorManager {
         return new registration.constructor(config.config ?? {});
     }
 
-    public static createMany(configs: BehaviorConfig[]): IMonsterBehavior[] {
+    public static createMany(configs: BehaviorConfig[]): IBehavior[] {
         return configs.map(config => this.create(config));
     }
 }

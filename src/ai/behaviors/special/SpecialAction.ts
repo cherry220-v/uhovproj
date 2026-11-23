@@ -6,7 +6,7 @@ export interface SpecialActionRequest {
     duration?: number;
 }
 
-export type SpecialActionResult =
-    | { success: true }
-    | { success: false }
-    | { ignored: true };
+export interface SpecialActionResult {
+    success?: boolean;
+    ignored?: boolean;
+}

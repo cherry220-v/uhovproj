@@ -16,11 +16,13 @@ export interface DefaultMovingConfig {
 }
 
 export class DefaultMovingBehavior extends IBehavior {
-    public readonly meta: BehaviorMeta = {
+    public static readonly meta: BehaviorMeta = {
         type: "default_moving",
         name: "Default Moving",
         description: "Стандартное перемещение монстра"
     };
+
+    public readonly meta: BehaviorMeta = DefaultMovingBehavior.meta;
 
     private dconfig: DefaultMovingConfig;
     private config: DefaultMovingConfig;
@@ -37,6 +39,9 @@ export class DefaultMovingBehavior extends IBehavior {
 
     private isMoving: boolean = false;
 
+    // Тики ожидания на споте после прихода в комнату
+    private restTicks: number = 0;
+
     constructor(
         config: DefaultMovingConfig,
         graph: RoomGraph
@@ -52,8 +57,11 @@ export class DefaultMovingBehavior extends IBehavior {
 
     public onAttach(monster: Monster): void {
         monster.targetRoom = this.config.default_target;
+        monster.spot = this.pickSpot(monster.currentRoom);
 
         this.quick_target(monster);
+
+        this.restTicks = this.randomRest();
     }
 
     public update(monster: Monster, delta: number): void {
@@ -91,6 +99,12 @@ export class DefaultMovingBehavior extends IBehavior {
 
         if (this.isMoving) {
             this.move(monster);
+            return;
+        }
+
+        // Стоим на споте комнаты, прежде чем двинуться дальше
+        if (this.restTicks > 0) {
+            this.restTicks--;
             return;
         }
 
@@ -157,15 +171,34 @@ export class DefaultMovingBehavior extends IBehavior {
         }
 
         monster.currentRoom = this.selectedWay;
+        monster.spot = this.pickSpot(monster.currentRoom);
 
         this.isMoving = false;
         this.selectedWay = null;
 
+        // Цель достигнута — остаёмся стоять на споте, не уходим дальше
         if (monster.currentRoom === monster.targetRoom) {
             return;
         }
 
-        this.quick_target(monster);
+        // Пауза на точке: монстр заметно стоит, потом идёт дальше
+        this.restTicks = this.randomRest();
+    }
+
+    // Сколько тиков (секунд) монстр стоит на споте после прихода
+    private randomRest(): number {
+        return 3 + Math.floor(Math.random() * 4);
+    }
+
+    // Случайный спот комнаты из её data-конфига; без спотов — null
+    // (тогда камера берёт первую точку из data/layers)
+    private pickSpot(roomId: string): string | null {
+        const room = this.graph.getRoom(roomId);
+        const spots = room?.spots ?? [];
+
+        if (spots.length === 0) return null;
+
+        return spots[Math.floor(Math.random() * spots.length)].id;
     }
 
     public canAttack(monster: Monster): boolean {

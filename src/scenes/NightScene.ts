@@ -7,14 +7,20 @@ import { FloorMapUI, floorTextureKey } from '../ui/FloorMapUI';
 import { profile, moneyWord } from '../meta/profile';
 import { ITEM_NAMES, ITEM_ORDER } from '../meta/items';
 
-import { cameraDataMap, floorMap } from './Cameras'
+import { floorMap } from './Cameras'
 import { MonitorController } from '../ui/MonitorController';
 import { MinigameManager } from '../ai/behaviors/special/MinigameManager';
 import { MonsterManager } from '../ai/MonsterManager';
+import { MonsterRegistry } from '../ai/MonsterRegistry';
+import { MonsterFactory } from '../ai/MonsterFactory';
+import { buildRoomGraph } from '../engine/RoomRegistry';
+import { getLayerAssets } from '../rendering/CameraLayers';
 import { SpecialActionRequest } from '../ai/behaviors/special/SpecialAction';
 import { NightManager } from '../systems/NightManager';
 import { NightConfig, NightRegistry } from '../systems/NightRegistry';
 import { FloorManager } from '../engine/FloorManager';
+import { HorrifiFilter } from 'phaser4-rex-plugins/plugins/horrififilter';
+import HorrifiFilterPlugin from 'phaser4-rex-plugins/plugins/horrififilter-plugin';
 
 const ROOM_SIZE = { width: 1678, height: 1119 };
 
@@ -54,6 +60,7 @@ export class NightScene extends Phaser.Scene {
     private floorMap!: FloorMapUI;
     private monitorController!: MonitorController;
     private uiCamera!: Phaser.Cameras.Scene2D.Camera;
+    private monitorCamera!: Phaser.Cameras.Scene2D.Camera;
 
     private nightConfig?: NightConfig;
     private night = 1;
@@ -97,14 +104,29 @@ export class NightScene extends Phaser.Scene {
         this.load.audio('sfx_hover', 'assets/sounds/ui_hover.wav');
         this.load.audio('sfx_click', 'assets/sounds/ui_click.wav');
 
+        this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
+            console.warn(`Не загрузился ассет: ${file.key} (${file.url})`);
+        });
+
+        for (let floor = 1; floor <= 4; floor++) {
+            this.load.image(floorTextureKey(floor), `assets/ui/floors/floor_${floor}.png`);
+        }
+
         this.floorManager.getActiveFloors().forEach(floor => {
-            this.load.image(floorTextureKey(floor.id), `assets/ui/floors/floor_${floor}.png`);
-            
-            for (const [cameraId, data] of Object.entries(cameraDataMap)) {
-                const path = `assets/rooms/${floor.id}/${cameraId}.jpg`;
-                this.load.image(cameraId, path);
+            const cameras = floorMap[floor.id]?.cameras ?? [];
+
+            for (const cameraId of cameras) {
+                this.load.image(cameraId, `assets/rooms/${floor.id}/${cameraId}.jpg`);
             }
         });
+
+        for (const config of MonsterRegistry.getAll()) {
+            this.load.image(`monster_${config.id}`, `assets/monsters/${config.id}.png`);
+        }
+
+        for (const asset of getLayerAssets()) {
+            this.load.image(asset.key, `assets/rooms/${asset.floor}/layers/${asset.file}.png`);
+        }
     }
 
     create(): void {
@@ -135,6 +157,15 @@ export class NightScene extends Phaser.Scene {
             monsters: this.monsterManager,
         });
 
+        const monsterFactory = new MonsterFactory({
+            events: this.bus,
+            graph: buildRoomGraph()
+        });
+
+        for (const config of MonsterRegistry.getAll()) {
+            this.monsterManager.add(monsterFactory.create(config));
+        }
+
         this.bus.on(
             "minigame:accept",
             this.runMinigame,
@@ -160,19 +191,69 @@ export class NightScene extends Phaser.Scene {
             backgroundSize: ROOM_SIZE
         });
 
+        this.monitorCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
+        const horrifiPlugin = new HorrifiFilterPlugin(this.plugins);
+        horrifiPlugin.add(this.monitorCamera, {
+            enable: true,
+
+            bloomEnable: false,
+            bloomRadius: 10,
+            bloomIntensity: 0.5,
+            bloomThreshold: 0.5,
+
+            chromaticEnable: false,
+            chabIntensity: 0.3,
+
+            vignetteEnable: false,
+            vignetteStrength: 0.5,
+            vignetteIntensity: 0.5,
+
+            noiseEnable: true,
+            noiseStrength: 0.2,
+            noiseSeed: 0.5,
+
+            vhsEnable: true,
+            vhsStrength: 0.3,
+
+            scanlinesEnable: true,
+            scanStrength: 0.3,
+
+            crtEnable: false,
+            crtWidth: 2,
+            crtHeight: 2
+        });
+
         this.monitorController = new MonitorController({
             scene: this,
+            camera: this.monitorCamera,
             floorManager: this.floorManager,
             events: this.bus,
+            monsters: this.monsterManager,
             x: 0,
             y: 0
         });
+        this.add.existing(this.monitorController);
+
+
+        const worldObjects = this.children.list.filter(
+            obj => obj !== this.monitorController
+        );
+
+        this.monitorCamera.ignore(worldObjects);
+        this.monitorCamera.ignore(this.monitorController.floorMap);
 
         this.buildUi();
 
         this.uiCamera = this.cameras.add();
-        this.uiCamera.ignore(this.roomView.layers);
+        this.add.existing(this.monitorController.floorMap);
+
+        this.uiCamera.ignore([
+            ...this.roomView.layers,
+            this.monitorController,
+        ]);
+
         this.uiCamera.fadeIn(1000, 0, 0, 0);
+
         this.cameras.main.ignore([
             this.hintText,
             this.timeText,
@@ -180,21 +261,41 @@ export class NightScene extends Phaser.Scene {
             this.monitorController,
         ]);
 
-        this.input.keyboard?.on('keydown-Q', () => this.lookAt('board'));
-        this.input.keyboard?.on('keydown-W', () => this.lookAt('door'));
-        this.input.keyboard?.on('keydown-C', () => this.lookAt('computer'));
-        this.input.keyboard?.on('keydown-E', () => this.monitorController.toggleMonitor());
+        this.uiCamera.addToRenderList(this.monitorController.floorMap);
+        this.input.keyboard?.on('keydown-Q', () => {
+            if (!this.isQteActive()) this.lookAt('board');
+        });
+        this.input.keyboard?.on('keydown-W', () => {
+            if (!this.isQteActive()) this.lookAt('door');
+        });
+        this.input.keyboard?.on('keydown-C', () => {
+            if (!this.isQteActive()) this.lookAt('computer');
+        });
+        this.input.keyboard?.on('keydown-E', () => {
+            if (!this.isQteActive()) this.monitorController.toggleMonitor();
+        });
         if (DEV_MODE) {
-            this.input.keyboard?.on('keydown-M', () => this.debugSkipHour());
+            this.input.keyboard?.on('keydown-M', () => {
+                if (!this.isQteActive()) this.debugSkipHour();
+            });
         }
         this.input.keyboard?.on('keydown-ESC', () => {
+            if (this.isQteActive()) return;
+
             this.scene.start(SceneKeys.MainMenu);
         });
         this.nightManager.startNight();
     }
 
+    private isQteActive(): boolean {
+        return this.scene.isActive("QTEScene");
+    }
+
     update(_time: number, delta: number): void {
         if (this.nightOver) return;
+
+        this.monsterManager.update(delta);
+        this.monitorController.refresh();
 
         this.elapsedMs = Math.min(this.elapsedMs + delta, NIGHT_END_MS);
         this.timeText.setText(formatNightClock(this.elapsedMs));
@@ -293,8 +394,7 @@ export class NightScene extends Phaser.Scene {
     }
 
     private runMinigame(request: SpecialActionRequest): void {
-        console.log("got emit in minigame");
-        this.scene.launch(request.sceneId, {eventBus: this.bus});
+        this.scene.launch(request.sceneId, { ...request, eventBus: this.bus });
     }
 
     private debugSkipHour(): void {

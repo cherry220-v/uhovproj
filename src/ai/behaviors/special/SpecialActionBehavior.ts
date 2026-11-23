@@ -1,18 +1,24 @@
-import { IEventEmitter } from "../../events";
+import { IEventEmitter } from "../../../engine/events";
 import type { Monster } from "../../Monster";
 import type { ISpecialActionBehavior, BehaviorMeta } from "../IBehavior";
 import { SpecialActionRequest } from "./SpecialAction";
 
 export interface SpecialActionConfig {
     actionId: string;
-    sceneId: string;
-    roomId: string;
+    sceneId?: string;
+    roomId?: string;
     duration?: number;
+
+    // Минимальная пауза между спецсобытиями, мс
+    cooldownMs?: number;
 }
+
+const DEFAULT_SCENE_ID = "QTEScene";
+const DEFAULT_COOLDOWN_MS = 45_000;
 
 export class SpecialActionBehavior implements ISpecialActionBehavior {
     public readonly meta: BehaviorMeta = {
-        type: "qte_special",
+        type: "special_action",
         name: "QTE Special",
         description: "Handles monster special actions and minigames"
     };
@@ -23,6 +29,7 @@ export class SpecialActionBehavior implements ISpecialActionBehavior {
     private active = false;
     private elapsed = 0;
     private resolved = false;
+    private cooldown = 0;
 
     private monster?: Monster;
 
@@ -43,10 +50,22 @@ export class SpecialActionBehavior implements ISpecialActionBehavior {
         this.monster = undefined;
     }
 
+    public applyConfig(_config: Record<string, unknown>): void {
+        // Конфиг задаётся конструктором; переопределение на лету не требуется
+    }
+
     public update(monster: Monster, delta: number): void {
         if (this.resolved) return;
 
-        if (!this.active && monster.state === "special") {
+        if (this.cooldown > 0) {
+            this.cooldown = Math.max(0, this.cooldown - delta);
+        }
+
+        if (
+            !this.active &&
+            this.cooldown <= 0 &&
+            monster.state === "special"
+        ) {
             this.start(monster);
         }
 
@@ -71,9 +90,10 @@ export class SpecialActionBehavior implements ISpecialActionBehavior {
 
         let request: SpecialActionRequest = {
             monsterId: monster.id,
-            sceneId: this.config.sceneId,
+            sceneId: this.config.sceneId ?? DEFAULT_SCENE_ID,
             actionId: this.config.actionId,
-            roomId: this.config.roomId,
+            // Спецсобытие привязано к комнате, где монстра застали
+            roomId: this.config.roomId ?? monster.currentRoom,
             duration: this.config.duration,
         };
 
@@ -85,11 +105,15 @@ export class SpecialActionBehavior implements ISpecialActionBehavior {
 
         this.resolved = true;
         this.active = false;
+        this.cooldown = this.config.cooldownMs ?? DEFAULT_COOLDOWN_MS;
 
         if (!this.monster) {
             this.reset();
             return;
         }
+
+        // Возвращаем монстра к обычному поведению после QTE
+        this.monster.state = "idle";
 
         this.events.emit("monster:special-finish", {
             monsterId: this.monster.id,

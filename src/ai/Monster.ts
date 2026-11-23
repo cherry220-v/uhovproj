@@ -18,6 +18,11 @@ export class Monster {
 
     public startRoom: string;
     public currentRoom: string;
+
+    // Спот внутри текущей комнаты, где монстра видно на камере
+    // (имя точки из data/layers/<камера>.json)
+    public spot: string | null = null;
+
     public pose: string | null = "default";
     public targetRoom: string | null = null;
     public quickTarget: string | null = null;

@@ -4,9 +4,19 @@ import floor3Cameras from '../../data/rooms/3/camera_view.json';
 import floor4Cameras from '../../data/rooms/4/camera_view.json';
 import { FloorManager } from '../engine/FloorManager';
 
-const roomModules = import.meta.glob<{ name: string }>('../../data/rooms/**/?f.**.json', {
-  eager: true,
-  import: 'default',
+interface RoomModuleData {
+    id?: string;
+    name?: string;
+    cameras?: Record<string, { active: boolean }>;
+    ways?: Record<string, number>;
+    specialWays?: Record<string, number>;
+    spots?: { id: string }[];
+    isSpecial?: boolean;
+}
+
+const roomModules = import.meta.glob<RoomModuleData>('../../data/rooms/**/?f*.json', {
+    eager: true,
+    import: 'default',
 });
 
 export interface CameraData {
@@ -27,30 +37,68 @@ export interface CameraData {
     isSpecial: boolean;
 }
 
-export const cameraDataMap: Record<string, { name: string; active: boolean }> = {};
-
-for (const data of Object.values(roomModules as Record<string, CameraData>)) {
-  if (!data?.cameras) continue;
-
-  for (const [cameraId, cameraConfig] of Object.entries(data.cameras)) {
-    console.log(cameraId, cameraConfig);
-    cameraDataMap[cameraId] = {
-      name: data.name,
-      active: cameraConfig.active,
-    };
-  }
+interface CameraInfo {
+    name: string;
+    active: boolean;
 }
-console.log(cameraDataMap);
 
-export const floorMap: Record<number, { cameras: string[] } | undefined> = {
-    1: floor1Cameras,
-    2: floor2Cameras,
-    3: floor3Cameras,
-    4: floor4Cameras
-};
+const cameraDataMap: Record<string, CameraInfo> = {};
+const roomNameMap: Record<string, string> = {};
+
+for (const data of Object.values(roomModules)) {
+    if (data?.id) {
+        roomNameMap[data.id] = data.name ?? data.id;
+    }
+
+    if (!data?.cameras) continue;
+
+    for (const [cameraId, cameraConfig] of Object.entries(data.cameras)) {
+        cameraDataMap[cameraId] = {
+            name: data.name ?? cameraId,
+            active: cameraConfig?.active ?? true,
+        };
+    }
+}
+
+export function getRoomIdFromCamera(cameraId: string): string {
+    return cameraId.split('.').slice(0, 2).join('.');
+}
+
+function normalizeCameraId(cameraId: string): string {
+    if (cameraDataMap[cameraId]) return cameraId;
+
+    const withSpot = `${cameraId}.1`;
+
+    if (cameraDataMap[withSpot]) return withSpot;
+
+    return cameraId;
+}
+
+function buildFloorMap(): Record<number, { cameras: string[] } | undefined> {
+    const raw: Record<number, { cameras: string[] }> = {
+        1: floor1Cameras,
+        2: floor2Cameras,
+        3: floor3Cameras,
+        4: floor4Cameras
+    };
+
+    const map: Record<number, { cameras: string[] } | undefined> = {};
+
+    for (const [floor, config] of Object.entries(raw)) {
+        map[Number(floor)] = {
+            cameras: (config.cameras ?? []).map(normalizeCameraId)
+        };
+    }
+
+    return map;
+}
+
+export const floorMap: Record<number, { cameras: string[] } | undefined> = buildFloorMap();
 
 export function getCameraName(camera: string): string {
-  return cameraDataMap[camera]?.name ?? camera;
+    return cameraDataMap[camera]?.name
+        ?? roomNameMap[getRoomIdFromCamera(camera)]
+        ?? camera;
 }
 
 export function getNextCamera(

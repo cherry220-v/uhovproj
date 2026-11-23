@@ -1,4 +1,4 @@
-import type { IEventEmitter } from "../../events";
+import type { IEventEmitter } from "../../../engine/events";
 import type { MonsterManager } from "../../MonsterManager";
 import { ISpecialActionBehavior } from "../IBehavior";
 import type {
@@ -37,6 +37,21 @@ export class MinigameManager {
             this.finishSpecial,
             this
         );
+
+        this.events.on(
+            "minigame:accept",
+            this.onAcceptMinigame,
+            this
+        );
+    }
+
+    private onAcceptMinigame(request: SpecialActionRequest): void {
+        if (this.activeRequest) return;
+
+        this.activeRequest = request;
+        this.pendingRequest = null;
+
+        this.events.emit("monitor:minigame-pending-end", request);
     }
 
     private startSpecial(request: SpecialActionRequest): void {
@@ -81,7 +96,7 @@ export class MinigameManager {
 
         if (!behavior) return;
 
-        behavior.resolve(event.result.success);
+        behavior.resolve(event.result.success === true);
 
         if (event.result.ignored) {
             this.applyIgnorePenalty(request);
@@ -106,6 +121,12 @@ export class MinigameManager {
         this.events.off(
             "monster:special-finish",
             this.finishSpecial,
+            this
+        );
+
+        this.events.off(
+            "minigame:accept",
+            this.onAcceptMinigame,
             this
         );
     }

@@ -9,12 +9,14 @@ const QTE_CODES: string[] = [
     "OlGaMaNaKoVa2023"
 ] as const;
 
+const PRINTABLE_KEY = /^[\x20-\x7e]$/;
+
 interface QTEData extends SpecialActionRequest {
     duration?: number;
 }
 
 export class QTEScene extends Phaser.Scene {
-    private eventsBus!: IEventEmitter;
+    private eventsBus: IEventEmitter | undefined;
 
     private code = "";
     private progress = 0;
@@ -23,18 +25,19 @@ export class QTEScene extends Phaser.Scene {
     private progressText!: Phaser.GameObjects.Text;
     private timerText!: Phaser.GameObjects.Text;
 
-    private deadline = 0;
+    private elapsedMs = 0;
     private duration = 15;
+    private startedAt = 0;
 
     private request!: QTEData;
     private finished = false;
 
-    constructor(eventsBus: IEventEmitter) {
+    constructor() {
         super({ key: "QTEScene" });
     }
 
-    public init(data: {eventBus: IEventEmitter}) {
-        this.eventsBus = data.eventBus;
+    public init(data: { eventBus?: IEventEmitter }): void {
+        this.eventsBus = data?.eventBus;
     }
 
     public create(data: QTEData): void {
@@ -44,7 +47,8 @@ export class QTEScene extends Phaser.Scene {
         this.code = QTE_CODES[Math.floor(Math.random() * QTE_CODES.length)];
 
         this.duration = data.duration ?? 15;
-        this.deadline = this.time.now + this.duration * 1000;
+        this.startedAt = Date.now();
+        this.elapsedMs = 0;
 
         const { width, height } = this.scale;
 
@@ -98,6 +102,15 @@ export class QTEScene extends Phaser.Scene {
             }
         ).setOrigin(0.5).setDepth(1001);
 
+        this.add.text(width / 2, height * 0.85,
+            "Shift — заглавные буквы и символы (!@#$%^&* …)",
+            {
+                fontSize: "16px",
+                color: "#777777",
+                fontFamily: "monospace"
+            }
+        ).setOrigin(0.5).setDepth(1001);
+
         this.refreshUI();
 
         this.input.keyboard?.on(
@@ -110,9 +123,11 @@ export class QTEScene extends Phaser.Scene {
     private handleKey(event: KeyboardEvent): void {
         if (this.finished) return;
 
-        const key = event.key.toLowerCase();
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
 
-        if (!/^[a-z]$/.test(key)) return;
+        const key = event.key;
+
+        if (!PRINTABLE_KEY.test(key)) return;
 
         const expected = this.code[this.progress];
 
@@ -149,9 +164,11 @@ export class QTEScene extends Phaser.Scene {
     public update(): void {
         if (this.finished) return;
 
+        this.elapsedMs = Date.now() - this.startedAt;
+
         const remaining = Math.max(
             0,
-            this.deadline - this.time.now
+            this.duration * 1000 - this.elapsedMs
         );
 
         this.timerText.setText(
@@ -174,7 +191,7 @@ export class QTEScene extends Phaser.Scene {
             this
         );
 
-        this.eventsBus.emit("monster:special-finish", {
+        this.eventsBus?.emit("monster:special-finish", {
             monsterId: this.request.monsterId,
             actionId: this.request.actionId,
             result: { success }

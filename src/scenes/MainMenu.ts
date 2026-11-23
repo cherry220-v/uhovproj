@@ -32,6 +32,7 @@ export class MainMenu extends Phaser.Scene {
         this.load.audio('theme', ['assets/sounds/theme.ogg']);
         this.load.audio('sfx_hover', 'assets/sounds/ui_hover.wav');
         this.load.audio('sfx_click', 'assets/sounds/ui_click.wav');
+        this.load.audio('qte_alarm', 'assets/sounds/qte_alarm.wav');
         this.load.image('menu-bg', 'assets/menu/menu-bg.png');
     }
 

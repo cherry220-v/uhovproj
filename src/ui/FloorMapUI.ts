@@ -41,8 +41,7 @@ export function floorTextureKey(floor: number): string {
     return `floor-plan-${floor}`;
 }
 
-export class FloorMapUI {
-    private readonly scene: Phaser.Scene;
+export class FloorMapUI extends Phaser.GameObjects.Container {
     private readonly dropdown: DropDownList;
     private readonly frame: Phaser.GameObjects.Rectangle;
     private readonly mapImage: Phaser.GameObjects.Image;
@@ -51,15 +50,17 @@ export class FloorMapUI {
     private readonly onFloorChange?: (floor: number) => void;
     private readonly hoverSound?: string;
     private readonly clickSound?: string;
+    private floorManager!: FloorManager;
     private floor: number;
     private isMapVisible: boolean = true;
 
     constructor(options: FloorMapOptions) {
-        this.scene = options.scene;
+        super(options.scene);
         this.onFloorChange = options.onFloorChange;
         this.hoverSound = options.hoverSound;
         this.clickSound = options.clickSound;
-        this.floor = options.floor ?? 1;
+        this.floor = options.floor ?? this.floorManager.getActiveFloors()[0]?.id ?? 1;
+        this.floorManager = options.floorManager;
 
         const btnCenterY = SCREEN.height - MARGIN - BTN_HEIGHT / 2;
         const imgBottom =
@@ -105,9 +106,9 @@ export class FloorMapUI {
 
         this.btnText = this.scene.add.text(0, 0, `Этаж ${this.floor}`, TEXT_STYLE);
 
-        const floorOptions: FloorOption[] = ([1, 2, 3, 4] as number[]).map(
-            floor => ({ floor })
-        );
+        const floorOptions: FloorOption[] = this.floorManager
+            .getActiveFloors()
+            .map(f => ({ floor: f.id }));
 
         this.dropdown = this.scene.rexUI.add.dropDownList({
             x: MARGIN + BTN_WIDTH / 2,
@@ -161,6 +162,12 @@ export class FloorMapUI {
         );
 
         this.layoutFloorImage();
+        this.add([
+            this.frame,
+            this.mapImage,
+            this.closeMapBtn,
+            this.dropdown
+        ]);
     }
 
     public get currentFloor(): number {
@@ -213,6 +220,16 @@ export class FloorMapUI {
 
     private layoutFloorImage(): void {
         const key = floorTextureKey(this.floor);
+
+        if (!this.scene.textures.exists(key)) {
+            this.mapImage.setVisible(false);
+            this.frame.setVisible(false);
+            return;
+        }
+
+        this.mapImage.setVisible(true);
+        this.frame.setVisible(true);
+
         const source = this.scene.textures.get(key).getSourceImage() as {
             width: number;
             height: number;
@@ -265,15 +282,6 @@ export class FloorMapUI {
         if (key && this.scene.cache.audio.exists(key)) {
             this.scene.sound.play(key, { volume });
         }
-    }
-
-    public visible(b: boolean): void {
-        let v = (b) ? 1 : 0
-        this.dropdown.setAlpha(v);
-        this.frame.setAlpha(v);
-        this.closeMapBtn.setAlpha(v);
-        this.mapImage.setAlpha(v);
-        this.btnText.setAlpha(v);
     }
     
     public setMapVisible(b: boolean) {
