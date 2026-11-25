@@ -285,7 +285,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
 
             this.scene.input.keyboard?.on('keydown-A', this.onKeyLeft);
             this.scene.input.keyboard?.on('keydown-D', this.onKeyRight);
-            this.scene.input.keyboard?.on('keydown-E', () => {this.toggleMonitor();});
+            this.scene.input.keyboard?.on('keydown-E', this.onKeyClose);
             this.playUi('sfx_click');
 
             this.cameraImage.setVisible(hasSignal).setAlpha(0);

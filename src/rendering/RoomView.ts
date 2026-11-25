@@ -65,6 +65,19 @@ export class RoomView {
     public roomLayers: Record<string, Phaser.GameObjects.Image> = {};
     public onLayerClick: Record<string, () => void> = {};
 
+    private onDeskKey = () => this.lookAt("classroom-desk");
+    private onDoorKey = () => this.lookAt("classroom-door");
+    private onComputerKey = () => this.lookAt("classroom-computer");
+
+    private onLookingEnd = () => {
+        this.activeLayer = "none";
+
+        this.setLayersInteractive(false);
+        this.moveView(RoomLayersCoords["none"]);
+
+        this.enableHotkeys();
+    };
+
     constructor(options: RoomViewOptions) {
         this.scene = options.scene;
         this.bus = options.bus;
@@ -72,8 +85,7 @@ export class RoomView {
         this.backgroundKey = options.backgroundKey;
         this.backgroundSize = options.backgroundSize;
 
-        this.bus.on("player:looking-end",
-            () => {this.enableHotkeys();this.setLayersInteractive(true);console.log("keys enabled");},
+        this.bus.on("player:looking-end", this.onLookingEnd,
             this
         );
 
@@ -106,33 +118,51 @@ export class RoomView {
         this.enableHotkeys();
     }
 
-    public addLayer(name: string, textureId: string, pos: {x: number, y: number}, onClick: () => void): void {
+    public addLayer(
+        name: string,
+        textureId: string,
+        pos: { x: number; y: number },
+        onClick: () => void
+    ): void {
         this.onLayerClick[name] = onClick;
 
-        const layer = this.scene.add.
-            image(pos.x, pos.y, name)
+        const layer = this.scene.add.image(pos.x, pos.y, textureId)
             .setOrigin(0, 0)
-            .setDepth(DEPTH.ROOM_BG+2);
+            .setDepth(DEPTH.ROOM_BG + 2);
+        layer.setTint(0x999999);
 
         layer.on("pointerdown", () => {
             if (!this.layersInteractive) return;
+            if (this.activeLayer !== name) return;
 
             this.disableHotkeys();
             this.setLayersInteractive(false);
-            console.log(this.layersInteractive);
+
             this.onLayerClick[name]?.();
         });
 
         this.roomLayers[name] = layer;
         this.bgLayer.add(layer);
-        this.setLayersInteractive(true);
+
+        this.setLayerInteractive(name, false);
+    }
+
+    public setLayerInteractive(layer: string, enabled: boolean): void {
+        const img = this.roomLayers[layer];
+        if (!img) return;
+
+        if (enabled) {
+            img.setInteractive({ useHandCursor: true });
+        } else {
+            img.disableInteractive();
+        }
     }
 
     public setLayersInteractive(enabled: boolean): void {
         this.layersInteractive = enabled;
 
-        for (const layer of Object.values(this.roomLayers)) {
-            if (enabled) {
+        for (const [name, layer] of Object.entries(this.roomLayers)) {
+            if (enabled && this.activeLayer === name) {
                 layer.setInteractive({ useHandCursor: true });
             } else {
                 layer.disableInteractive();
@@ -140,8 +170,8 @@ export class RoomView {
         }
 
         if (!enabled) {
-            this.scene.input.setDefaultCursor('default');
-            this.scene.game.canvas.style.cursor = 'default';
+            this.scene.input.setDefaultCursor("default");
+            this.scene.game.canvas.style.cursor = "default";
         }
     }
 
@@ -159,7 +189,7 @@ export class RoomView {
                 .setOrigin(0, 0)
                 .setScrollFactor(1)
                 .setDepth(1);
-
+            bg.setTint(0x999999);
             this.bgLayer.add(bg);
         } else {
             const bg = this.scene.add.rectangle(
@@ -190,15 +220,9 @@ export class RoomView {
     public enableHotkeys(): void {
         if (this.hotkeysEnabled) return;
 
-        this.scene.input.keyboard?.on('keydown-Q', () => {
-            this.lookAt("classroom-desk");
-        });
-        this.scene.input.keyboard?.on('keydown-W', () => {
-            this.lookAt("classroom-door");
-        });
-        this.scene.input.keyboard?.on('keydown-C', () => {
-            this.lookAt("classroom-computer");
-        });
+        this.scene.input.keyboard?.on('keydown-Q', this.onDeskKey);
+        this.scene.input.keyboard?.on('keydown-W', this.onDoorKey);
+        this.scene.input.keyboard?.on('keydown-C', this.onComputerKey);
         // this.scene.input.keyboard?.on('keydown-ESC', () => {
         //     this.scene.scene.start("MainMenu");
         // });
@@ -220,8 +244,39 @@ export class RoomView {
     }
 
     private lookAt(target: RoomLayers): void {
-        this.activeLayer = this.activeLayer === target ? 'none' : target;
-        this.moveView(RoomLayersCoords[this.activeLayer]);
+        if (!this.hotkeysEnabled) return;
+
+        this.disableHotkeys();
+        this.setLayersInteractive(false);
+
+        this.activeLayer = this.activeLayer === target ? "none" : target;
+
+        this.scene.tweens.killTweensOf(this.camView);
+
+        this.scene.tweens.add({
+            targets: this.camView,
+            x: RoomLayersCoords[this.activeLayer].fx * ROOM_SIZE.width,
+            y: RoomLayersCoords[this.activeLayer].fy * ROOM_SIZE.height,
+            zoom: RoomLayersCoords[this.activeLayer].zoom,
+            duration: PAN_MS,
+            ease: "Sine.easeInOut",
+
+            onUpdate: () => {
+                const cam = this.scene.cameras.main;
+                cam.setZoom(this.camView.zoom);
+                cam.centerOn(this.camView.x, this.camView.y);
+            },
+
+            onComplete: () => {
+                if (this.activeLayer !== "none") {
+                    this.setLayerInteractive(this.activeLayer, true);
+                    this.layersInteractive = true;
+                    this.enableHotkeys();
+                } else {
+                    this.enableHotkeys();
+                }
+            }
+        });
     }
 
     private buildFurniture(): void {
