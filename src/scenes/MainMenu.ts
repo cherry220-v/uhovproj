@@ -50,8 +50,8 @@ export class MainMenu extends Phaser.Scene {
             this.music?.play();
             this.tweens.add({
                 targets: this.music,
-                // volume: 0.5,
-                volume: 0,
+                volume: 0.5,
+                // volume: 0,
                 duration: 3000,
                 ease: 'Linear'
             });
@@ -200,7 +200,6 @@ export class MainMenu extends Phaser.Scene {
 
     private shiftNight(delta: number): void {
         const nextNight = this.selectedNight + delta;
-        console.log("NIGHT SHIFT" + " next night = " + nextNight);
 
         if (!profile.isNightUnlocked(nextNight)) return;
 

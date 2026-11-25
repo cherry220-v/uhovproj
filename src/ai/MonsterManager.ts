@@ -1,5 +1,6 @@
 import { Monster } from "./Monster";
 import type { IEventEmitter } from "../engine/events";
+import Phaser from "phaser";
 
 export interface MonsterManagerOptions {
     events: IEventEmitter;
@@ -50,7 +51,29 @@ export class MonsterManager {
     public update(delta: number): void {
         for (const monster of this.monsters.values()) {
             monster.update(delta);
+            switch (monster.state) {
+            case "idle":
+            case "moving":
+            case "watching":
+            case "special":
+            case "returning":
+                break;
+
+            case "attacking":
+                this.onAttack(monster);
+                break;
         }
+        }
+    }
+
+    private onAttack(monster: Monster): void {
+        const deathText = monster.deathTexts!.length > 0
+        ? Phaser.Utils.Array.GetRandom(monster.deathTexts!)
+        : "Вы не пережили эту ночь.";
+        this.events.emit("monster:attack", {
+            monster: monster,
+            deathText: deathText
+        });
     }
 
     public tick(): void {

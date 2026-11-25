@@ -1,5 +1,3 @@
-// Конфиги слоёв камер (data/layers/<камера>.json) — информационные
-// файлы: точки, где монстра видно на фото, и перекрывающие объекты
 export interface CameraLayersConfig {
     layers: Record<string, number>;
     spots: Record<string, number[]>;
@@ -29,8 +27,6 @@ export function getLayersConfig(
     return configs.get(cameraId);
 }
 
-// Координата спота на исходном фото: сначала ищем точку по имени
-// спота монстра, иначе первую заданную в конфиге
 export function getSpotPosition(
     cameraId: string,
     spotName?: string | null
@@ -54,8 +50,6 @@ export interface LayerAsset {
     file: string;
 }
 
-// Картинки-перекрытия для загрузчика: ключ текстуры совпадает
-// с ключом слоя, файл лежит в assets/rooms/<этаж>/layers/
 export function getLayerAssets(): LayerAsset[] {
     const assets: LayerAsset[] = [];
 

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GlitchManager } from '../effects/GlitchManager';
 import { FloorMapUI } from './FloorMapUI';
 import HorrifiFilter from 'phaser4-rex-plugins/plugins/shaders/horrifi/HorrifiFilter';
-import { floorMap, getCameraName, getRoomIdFromCamera, getNextCamera } from '../scenes/Cameras';
+import { floorMap, getCameraName, getRoomIdFromCamera, getNextCamera, cameraDataMap } from '../scenes/Cameras';
 import { DEPTH } from '../rendering/depth';
 import { SpecialActionRequest } from '../ai/behaviors/special/SpecialAction';
 import { IEventEmitter } from '../engine/events';
@@ -10,6 +10,7 @@ import { MenuButton } from './MenuButton';
 import { FloorManager } from '../engine/FloorManager';
 import { MonsterManager } from '../ai/MonsterManager';
 import { getLayersConfig, getSpotPosition } from '../rendering/CameraLayers';
+import { HorrifiController } from 'phaser4-rex-plugins/plugins/horrififilter';
 
 const MONITOR_FADE_MS = 130;
 
@@ -48,8 +49,20 @@ export class MonitorController extends Phaser.GameObjects.Container {
     private monsterSprites: Map<string, Phaser.GameObjects.Image> = new Map();
     private overlaySprites: Map<string, Phaser.GameObjects.Image[]> = new Map();
 
-    private onKeyLeft = () => this.changeCamera(true);
-    private onKeyRight = () => this.changeCamera(false);
+    private onKeyLeft = (event: KeyboardEvent) => {
+        if (event.repeat) return;
+        this.changeCamera(true);
+    };
+
+    private onKeyRight = (event: KeyboardEvent) => {
+        if (event.repeat) return;
+        this.changeCamera(false);
+    };
+
+    private onKeyClose = (event: KeyboardEvent) => {
+        if (event.repeat) return;
+        this.toggleMonitor();
+    };
 
     private activeCamera: string = floorMap[1]?.cameras[0] ?? "1f.1s.1";
 
@@ -152,7 +165,6 @@ export class MonitorController extends Phaser.GameObjects.Container {
         this.updateCameraView();
 
         this.scene.input.keyboard?.on('keydown-Z', () => { this.cameraImage.setLighting(!this.flashlightUsing); this.flashlightUsing = !this.flashlightUsing; });
-        this.updateVHS();
 
         this.updateMonitor();
     }
@@ -220,7 +232,7 @@ export class MonitorController extends Phaser.GameObjects.Container {
         this.events.emit("minigame:accept", this.pendingRequest);
     }
 
-    private updateVHS(): void {
+    public updateMonitorVHS(filter: HorrifiController): void {
         const proxy = { vhsStrength: 0.05 };
 
         this.scene.tweens.add({
@@ -228,13 +240,17 @@ export class MonitorController extends Phaser.GameObjects.Container {
             vhsStrength: Phaser.Math.FloatBetween(0.05, 0.5),
             duration: Phaser.Math.Between(300, 5500),
             ease: 'Sine.easeInOut',
+
             onUpdate: () => {
-                for (const filter of this.horrifiFilters) {
+                if ('vhsStrength' in filter) {
                     (filter as any).vhsStrength = proxy.vhsStrength;
                 }
             },
+
             onComplete: () => {
-                this.updateVHS();
+                if (!this.monitorOpen) return;
+
+                this.updateMonitorVHS(filter);
             }
         });
     }
@@ -257,16 +273,19 @@ export class MonitorController extends Phaser.GameObjects.Container {
 
         const hasSignal = this.scene.textures.exists(this.activeCamera);
 
+        this.scene.input.keyboard?.off('keydown-A', this.onKeyLeft);
+        this.scene.input.keyboard?.off('keydown-D', this.onKeyRight);
+        this.scene.input.keyboard?.off('keydown-E', this.onKeyClose);
+
         if (this.monitorOpen) {
             this.monitorBlur.active = false;
             this.floorMap.setVisible(true);
             this.floorMap.setMapVisible(this.floorMap.mapVisible);
             this.noSignalBg.setVisible(!hasSignal);
 
-            this.scene.input.keyboard?.off('keydown-A', this.onKeyLeft);
-            this.scene.input.keyboard?.off('keydown-D', this.onKeyRight);
             this.scene.input.keyboard?.on('keydown-A', this.onKeyLeft);
             this.scene.input.keyboard?.on('keydown-D', this.onKeyRight);
+            this.scene.input.keyboard?.on('keydown-E', () => {this.toggleMonitor();});
             this.playUi('sfx_click');
 
             this.cameraImage.setVisible(hasSignal).setAlpha(0);
@@ -280,8 +299,9 @@ export class MonitorController extends Phaser.GameObjects.Container {
             this.floorMap.setVisible(false);
             this.noSignalBg.setVisible(false);
 
-            this.scene.input.keyboard?.off('keydown-A', this.onKeyLeft);
-            this.scene.input.keyboard?.off('keydown-D', this.onKeyRight);
+            this.scene.input.keyboard?.removeAllKeys(true, true);
+
+            this.events.emit("player:looking-end");
 
             this.playUi('sfx_hover', 0.25);
 
@@ -363,10 +383,12 @@ export class MonitorController extends Phaser.GameObjects.Container {
             : 0;
 
         for (const [cameraId, overlays] of this.overlaySprites) {
-            const isActive =
+            const cameraInfo = cameraDataMap[this.activeCamera];
+            let isActive =
                 this.monitorOpen &&
                 transform !== null &&
                 cameraId === this.activeCamera;
+            if (!cameraInfo?.active) isActive = false;
 
             for (const overlay of overlays) {
                 overlay.setVisible(isActive);
@@ -517,16 +539,30 @@ export class MonitorController extends Phaser.GameObjects.Container {
     }
 
     private updateCameraView(): void {
-        const hasSignal = this.scene.textures.exists(this.activeCamera);
+        const cameraInfo = cameraDataMap[this.activeCamera];
+
+        let hasSignal = this.scene.textures.exists(this.activeCamera);
+        if (!cameraInfo?.active) hasSignal = false;
+
         this.noSignalBg.setVisible(!hasSignal && this.monitorOpen);
 
         if (hasSignal) {
             this.cameraImage.setTexture(this.activeCamera);
             this.fitCameraImage();
             this.cameraImage.setVisible(this.monitorOpen);
+
             this.viewText.setText(`вид: ${getCameraName(this.activeCamera)}`);
         } else {
             this.cameraImage.setVisible(false);
+            this.overlaySprites.forEach((element: Phaser.GameObjects.Image[]) => {
+                element.forEach(img => {
+                    img.setVisible(false);
+                });
+            });
+
+            this.monsterSprites.forEach((element: Phaser.GameObjects.Image) => {
+                element.setVisible(false);
+            });
             this.viewText.setText(`${getCameraName(this.activeCamera)} — нет сигнала`);
         }
     }

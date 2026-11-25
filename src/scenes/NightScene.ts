@@ -19,16 +19,16 @@ import { SpecialActionRequest } from '../ai/behaviors/special/SpecialAction';
 import { NightManager } from '../systems/NightManager';
 import { NightConfig, NightRegistry } from '../systems/NightRegistry';
 import { FloorManager } from '../engine/FloorManager';
-import { HorrifiFilter } from 'phaser4-rex-plugins/plugins/horrififilter';
 import HorrifiFilterPlugin from 'phaser4-rex-plugins/plugins/horrififilter-plugin';
+import { Monster } from '../ai/Monster';
 
-const ROOM_SIZE = { width: 1678, height: 1119 };
+const ROOM_SIZE = { width: 1600, height: 702 };
 
 const VIEW_TARGETS = {
-    default: { fx: 0.42, fy: 0.54, zoom: 1 },
-    computer: { fx: 0.41, fy: 0.71, zoom: 1.4 },
-    board: { fx: 0.33, fy: 0.21, zoom: 1.3 },
-    door: { fx: 0.66, fy: 0.33, zoom: 1.4 }
+    default: { fx: 0.45, fy: 0.5, zoom: 1 },
+    computer: { fx: 0.46, fy: 0.62, zoom: 1.8 },
+    board: { fx: 0.27, fy: 0.3, zoom: 1.3 },
+    door: { fx: 0.74, fy: 0.38, zoom: 1.4 }
 } as const;
 
 type SideView = keyof typeof VIEW_TARGETS;
@@ -67,8 +67,6 @@ export class NightScene extends Phaser.Scene {
     private elapsedMs = 0;
     private nightOver = false;
 
-    private readonly camView = { x: 0, y: 0, zoom: 1 };
-
     private sideView: SideView = 'default';
 
     constructor() {
@@ -100,7 +98,11 @@ export class NightScene extends Phaser.Scene {
     }
 
     preload(): void {
-        this.load.image('classroom-photo', 'assets/rooms/4/4f.420.png');
+        this.load.image('classroom-photo', 'assets/rooms/4/4f.420.b.jpg');
+        this.load.image('classroom-computer', 'assets/rooms/4/layers/computer.png')
+        this.load.image('classroom-desk', 'assets/rooms/4/layers/desk.png')
+        this.load.image('classroom-door', 'assets/rooms/4/layers/door.png')
+
         this.load.audio('sfx_hover', 'assets/sounds/ui_hover.wav');
         this.load.audio('sfx_click', 'assets/sounds/ui_click.wav');
 
@@ -172,15 +174,11 @@ export class NightScene extends Phaser.Scene {
             this
         );
 
-        const cam = this.cameras.main;
-        cam.setBounds(0, 0, ROOM_SIZE.width, ROOM_SIZE.height);
-
-        const def = VIEW_TARGETS.default;
-        this.camView.x = def.fx * ROOM_SIZE.width;
-        this.camView.y = def.fy * ROOM_SIZE.height;
-        this.camView.zoom = def.zoom;
-        cam.setZoom(this.camView.zoom);
-        cam.centerOn(this.camView.x, this.camView.y);
+        this.bus.on(
+            "monster:attack",
+            this.endGame,
+            this
+        );
 
         this.roomView = new RoomView({
             scene: this,
@@ -190,10 +188,28 @@ export class NightScene extends Phaser.Scene {
             backgroundKey: 'classroom-photo',
             backgroundSize: ROOM_SIZE
         });
+        this.roomView.addLayer(
+            "classroom-computer",
+            "classroom-computer",
+            { x: 605, y: 299 },
+            () => this.computerClicked()
+        );
+        this.roomView.addLayer(
+            "classroom-desk",
+            "classroom-desk",
+            { x: 205, y: 25 },
+            () => this.deskClicked()
+        );
+        this.roomView.addLayer(
+            "classroom-door",
+            "classroom-door",
+            { x: 1105, y: 53 },
+            () => console.log("door")
+        );
 
         this.monitorCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height);
         const horrifiPlugin = new HorrifiFilterPlugin(this.plugins);
-        horrifiPlugin.add(this.monitorCamera, {
+        let horrify = horrifiPlugin.add(this.monitorCamera, {
             enable: true,
 
             bloomEnable: false,
@@ -201,7 +217,7 @@ export class NightScene extends Phaser.Scene {
             bloomIntensity: 0.5,
             bloomThreshold: 0.5,
 
-            chromaticEnable: false,
+            chromaticEnable: true,
             chabIntensity: 0.3,
 
             vignetteEnable: false,
@@ -232,6 +248,7 @@ export class NightScene extends Phaser.Scene {
             x: 0,
             y: 0
         });
+        this.monitorController.updateMonitorVHS(horrify);
         this.add.existing(this.monitorController);
 
 
@@ -262,33 +279,11 @@ export class NightScene extends Phaser.Scene {
         ]);
 
         this.uiCamera.addToRenderList(this.monitorController.floorMap);
-        this.input.keyboard?.on('keydown-Q', () => {
-            if (!this.isQteActive()) this.lookAt('board');
-        });
-        this.input.keyboard?.on('keydown-W', () => {
-            if (!this.isQteActive()) this.lookAt('door');
-        });
-        this.input.keyboard?.on('keydown-C', () => {
-            if (!this.isQteActive()) this.lookAt('computer');
-        });
-        this.input.keyboard?.on('keydown-E', () => {
-            if (!this.isQteActive()) this.monitorController.toggleMonitor();
-        });
-        if (DEV_MODE) {
-            this.input.keyboard?.on('keydown-M', () => {
-                if (!this.isQteActive()) this.debugSkipHour();
-            });
-        }
-        this.input.keyboard?.on('keydown-ESC', () => {
-            if (this.isQteActive()) return;
-
-            this.scene.start(SceneKeys.MainMenu);
-        });
         this.nightManager.startNight();
     }
 
-    private isQteActive(): boolean {
-        return this.scene.isActive("QTEScene");
+    private isMinigameActive(): boolean {
+        return !this.scene.isActive("NightScene");
     }
 
     update(_time: number, delta: number): void {
@@ -344,6 +339,25 @@ export class NightScene extends Phaser.Scene {
         this.lootText.setText(lines.join('\n'));
     }
 
+    private computerClicked(): void {
+        console.log("computerClicked");
+        this.monitorController.toggleMonitor();
+        this.bus.emit("player:cameras");
+    }
+
+    private deskClicked(): void {
+        const deskMinigameEmit: SpecialActionRequest = {
+            monsterId: "manakova",
+            actionId: "special_desk",
+            roomId: "4f.420",
+            sceneId: "DeskScene",
+            duration: 10
+        };
+        this.bus.emit("minigame:accept", deskMinigameEmit);
+        this.scene.pause("NightScene");
+        this.scene.launch("DeskScene");
+    }
+
     private winNight(): void {
         if (this.nightOver) return;
         this.nightOver = true;
@@ -393,40 +407,23 @@ export class NightScene extends Phaser.Scene {
         });
     }
 
+    private endGame(request: {monster: Monster, deathText: string}): void {
+        this.scene.start("DeathScene", {
+            monsterId: request.monster.id,
+            monsterName: request.monster.name,
+            deathText: request.deathText
+    });
+    }
+
     private runMinigame(request: SpecialActionRequest): void {
+        this.roomView.disableHotkeys();
+        this.scene.pause("NightScene");
         this.scene.launch(request.sceneId, { ...request, eventBus: this.bus });
     }
 
     private debugSkipHour(): void {
         if (this.nightOver) return;
         this.elapsedMs = Math.min(this.elapsedMs + NIGHT_HOUR_MS, NIGHT_END_MS);
-    }
-
-    private moveView(target: { fx: number; fy: number; zoom: number }): void {
-        this.tweens.killTweensOf(this.camView);
-
-        this.tweens.add({
-            targets: this.camView,
-            x: target.fx * ROOM_SIZE.width,
-            y: target.fy * ROOM_SIZE.height,
-            zoom: target.zoom,
-            duration: PAN_MS,
-            ease: 'Sine.easeInOut',
-            onUpdate: () => {
-                this.cameras.main.setZoom(this.camView.zoom);
-                this.cameras.main.centerOn(this.camView.x, this.camView.y);
-            }
-        });
-    }
-
-    private lookAt(target: SideView): void {
-        if (this.monitorController.monitorOpened) {
-            return;
-        }
-
-        this.sideView = this.sideView === target ? 'default' : target;
-        this.moveView(VIEW_TARGETS[this.sideView]);
-        this.playUi('sfx_hover', 0.25);
     }
 
     private playUi(key: string, volume = 0.4): void {

@@ -8,7 +8,7 @@
         {
             "type": "default_moving",
             "config": {
-                "default_target": "4f.420",
+                "default_target": "1f.2s",
                 "agression": 6,
                 "spProgression": 10,
                 "chances": {"s": 50, "sp": 30, "e": 20}
@@ -22,5 +22,15 @@
                 "duration": 30
             }
         }
-    ]
+    ],
+    "deathTexts": [
+        "Еще подход",
+        "Ну это на троечку",
+        "На ДОУ пойдёшь"
+    ],
+    "sounds": {
+        "move": ["skrip_pola", "topot", "cheto_drugoye"],
+        "attack": ["scream_1"],
+        "watching": ["laugh_1"]
+    }
 }

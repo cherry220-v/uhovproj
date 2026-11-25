@@ -19,14 +19,18 @@ export class Monster {
     public startRoom: string;
     public currentRoom: string;
 
-    // Спот внутри текущей комнаты, где монстра видно на камере
-    // (имя точки из data/layers/<камера>.json)
     public spot: string | null = null;
 
     public pose: string | null = "default";
     public targetRoom: string | null = null;
     public quickTarget: string | null = null;
+    public deathTexts: string[] | null;
 
+    public sounds: {
+        move: string[];
+        attack: string[];
+        watching: string[];
+    } | null;
 
     private behaviors: IBehavior[] = [];
 
@@ -36,12 +40,20 @@ export class Monster {
     constructor(
         id: string,
         name: string,
-        startRoom: string
+        startRoom: string,
+        deathTexts: string[],
+        sounds: {
+        move: string[];
+        attack: string[];
+        watching: string[];
+    }
     ) {
         this.id = id;
         this.name = name;
         this.startRoom = startRoom;
         this.currentRoom = startRoom;
+        this.deathTexts = deathTexts;
+        this.sounds = sounds;
     }
 
     public addBehavior(behavior: IBehavior): void {

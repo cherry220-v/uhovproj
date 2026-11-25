@@ -42,7 +42,8 @@ interface CameraInfo {
     active: boolean;
 }
 
-const cameraDataMap: Record<string, CameraInfo> = {};
+export const cameraDataMap: Record<string, CameraInfo> = {};
+
 const roomNameMap: Record<string, string> = {};
 
 for (const data of Object.values(roomModules)) {
@@ -59,7 +60,7 @@ for (const data of Object.values(roomModules)) {
         };
     }
 }
-
+console.log(cameraDataMap);
 export function getRoomIdFromCamera(cameraId: string): string {
     return cameraId.split('.').slice(0, 2).join('.');
 }

@@ -6,6 +6,7 @@ import { ShopScene } from './scenes/ShopScene';
 
 import HorrifiFilterPlugin from 'phaser4-rex-plugins/plugins/horrififilter-plugin.js';
 import { QTEScene } from './scenes/QTEScene';
+import { DeathScene } from './scenes/DeathScene';
 
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -49,7 +50,7 @@ const config: Phaser.Types.Core.GameConfig = {
             }
         ]
     },
-    scene: [MainMenu, NightScene, ShopScene, QTEScene]
+    scene: [MainMenu, NightScene, ShopScene, QTEScene, DeathScene]
 };
 
 const game = new Phaser.Game(config);

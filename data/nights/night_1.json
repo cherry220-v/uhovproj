@@ -11,13 +11,13 @@
 
     "hours": {
         "1": {
-            "activeMonsters": ["korban_v1"],
+            "activeMonsters": [],
             "monsters": {
                 "korban_v1": {
-                    "intelligence": 2,
+                    "intelligence": 10,
                     "behaviors": {
                         "default_moving": {
-                            "agression": 3,
+                            "agression": 10,
                             "spProgression": 5
                         }
                     }

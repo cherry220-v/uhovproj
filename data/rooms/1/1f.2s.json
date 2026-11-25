@@ -5,7 +5,7 @@
         "2f.2s": 1
     },
     "cameras": {
-        "2f.2s.1": {"active": true}
+        "1f.2s.1": {"active": true}
     },
     "spots": [
         {"id": "door"}

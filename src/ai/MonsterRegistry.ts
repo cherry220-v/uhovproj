@@ -13,8 +13,6 @@ export class MonsterRegistry {
 
     static {
         for (const config of Object.values(monsterConfigs)) {
-            // В data/monsters лежат не только монстры (например,
-            // zinko.json — конфиг повестки): пропускаем файлы без id
             if (!config?.id) continue;
 
             this.monsters.set(config.id, config);

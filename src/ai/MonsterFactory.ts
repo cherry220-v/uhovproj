@@ -11,6 +11,13 @@ export interface MonsterConfig {
     name: string;
     startRoom: string;
     behaviors: BehaviorConfig[];
+    deathTexts: string[];
+
+    sounds: {
+        move: string[];
+        attack: string[];
+        watching: string[];
+    };
 }
 
 export interface MonsterFactoryOptions {
@@ -18,8 +25,6 @@ export interface MonsterFactoryOptions {
     graph: RoomGraph;
 }
 
-// Собирает монстра из data/monsters/*.json: создаёт поведение
-// по типу и передаёт нужные зависимости (граф комнат, шину событий)
 export class MonsterFactory {
     private events: IEventEmitter;
     private graph: RoomGraph;
@@ -33,7 +38,9 @@ export class MonsterFactory {
         const monster = new Monster(
             config.id,
             config.name,
-            config.startRoom
+            config.startRoom,
+            config.deathTexts,
+            config.sounds
         );
 
         for (const behaviorConfig of config.behaviors ?? []) {
@@ -63,7 +70,6 @@ export class MonsterFactory {
                     this.graph
                 );
 
-            // В data поле сцены называется "scene", в коде — sceneId
             case "special_action": {
                 const duration = Number(raw.duration);
                 const cooldownMs = Number(raw.cooldownMs);

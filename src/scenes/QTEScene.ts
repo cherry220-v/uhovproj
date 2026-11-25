@@ -197,6 +197,7 @@ export class QTEScene extends Phaser.Scene {
             result: { success }
         });
 
+        this.scene.resume("NightScene");
         this.scene.stop();
     }
 }
